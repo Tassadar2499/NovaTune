@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-NovaTune is a distributed audio management platform built on .NET 9.0 using ASP.NET Core microservices orchestrated via Dotnet Aspire. The project follows a layered architecture with clean separation between API, Application, Domain, and Infrastructure layers.
+NovaTune is a distributed audio management platform built on .NET 9.0 using ASP.NET Core microservices orchestrated via Dotnet Aspire. The project uses the standard Aspire template structure with clear folder organization within ApiService.
 
 ## Build and Development Commands
 
@@ -48,13 +48,17 @@ The solution is located at `src/NovaTuneApp/NovaTuneApp.sln` with these projects
 
 ## Architecture
 
-The planned architecture follows layered design:
-- `NovaTune.Api` - ASP.NET Core endpoints
-- `NovaTune.Application` - Use cases and business logic
-- `NovaTune.Domain` - Entities and validation rules
-- `NovaTune.Infrastructure` - External service adapters (RavenDB, MinIO, NCache, Kafka)
+The project uses a simplified structure within `NovaTuneApp.ApiService`:
 
-Infrastructure adapters should expose interfaces under `NovaTune.Application.Abstractions` for testability.
+```
+NovaTuneApp.ApiService/
+├── Models/           # Entities (User, Track, AudioMetadata)
+├── Services/         # Business logic (AuthService, TrackService, etc.)
+├── Endpoints/        # Minimal API route definitions
+└── Infrastructure/   # External adapters (MinIO, RavenDB, Kafka, NCache)
+```
+
+This approach avoids premature abstraction while maintaining clear boundaries. If complexity grows significantly, consider extracting to separate projects (Domain, Application, Infrastructure) later.
 
 ## Tech Stack
 
@@ -87,7 +91,7 @@ Infrastructure adapters should expose interfaces under `NovaTune.Application.Abs
 - Name integration tests: `{Target}.IntegrationTests.cs`
 - Use Docker fixtures or Dotnet Aspire for external dependencies
 - Configure tests via `appsettings.Test.json`
-- Target: ≥80% line coverage for Application layer and auth middleware
+- Target: ≥80% line coverage for Services and auth middleware
 
 ## Key Documentation
 
