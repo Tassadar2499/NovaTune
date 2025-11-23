@@ -1,0 +1,16 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.0.0">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <UserSecretsId>4e64f7c0-844f-4f56-8406-e11b4c9e4705</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\NovaTuneApp.ApiService\NovaTuneApp.ApiService.csproj"/>
+        <ProjectReference Include="..\NovaTuneApp.Web\NovaTuneApp.Web.csproj"/>
+    </ItemGroup>
+
+</Project>
