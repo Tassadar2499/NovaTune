@@ -60,13 +60,18 @@ Infrastructure adapters should expose interfaces under `NovaTune.Application.Abs
 
 - **Runtime:** .NET 9.0 / C# 12
 - **Orchestration:** Dotnet Aspire 13.0
-- **Test Framework:** xUnit 2.9.3
-- **Database:** RavenDB (document store)
+- **Database:** RavenDB (sole document store; custom IUserStore/IRoleStore for ASP.NET Identity)
 - **Object Storage:** MinIO (S3-compatible)
-- **Caching:** NCache
-- **Messaging:** Apache Kafka, RabbitMQ
-- **Observability:** OpenTelemetry with OTLP export
-- **Frontend:** Vue.js + TypeScript (planned)
+- **Caching:** NCache (presigned URLs, session state)
+- **Messaging:** Apache Kafka (event streaming, analytics), RabbitMQ (task queues)
+- **Auth:** ASP.NET Identity with JWT + refresh tokens
+- **Audio:** FFmpeg/FFprobe (via base Docker image)
+- **Gateway:** YARP (reverse proxy)
+- **API Docs:** Scalar (OpenAPI UI)
+- **Logging:** Serilog (structured JSON with correlation IDs)
+- **Observability:** OpenTelemetry (metrics, traces via Aspire)
+- **Testing:** xUnit, Testcontainers
+- **Frontend:** Vue.js + TypeScript
 
 ## Code Style
 
@@ -86,10 +91,11 @@ Infrastructure adapters should expose interfaces under `NovaTune.Application.Abs
 
 ## Key Documentation
 
-- `AGENTS.md` - Authoritative repository guidelines
-- `doc/requirements/functional.md` - Functional requirements (FR 1-11)
-- `doc/requirements/non_functional.md` - Non-functional requirements (NF-1 to NF-8)
-- `doc/requirements/stack.md` - Technology stack specification
+- [AGENTS.md](AGENTS.md) - Authoritative repository guidelines
+- [Functional Requirements](doc/requirements/functional.md) - FR 1-11
+- [Non-Functional Requirements](doc/requirements/non_functional.md) - NF-1 to NF-8
+- [Technology Stack](doc/requirements/stack.md) - Stack specification
+- [Implementation Plan](doc/implementation/init.md) - 8-phase roadmap
 
 ## Commit Guidelines
 
