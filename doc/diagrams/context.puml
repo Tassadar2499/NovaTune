@@ -1,0 +1,40 @@
+@startuml NovaTuneContext
+!include <C4/C4_Context>
+!pragma layout smetana
+
+Person(user, "Listener", "Uploads and streams personal tracks")
+Person(admin, "Admin", "Operations / compliance")
+
+System_Boundary(system, "NovaTune Platform") {
+    System(api, "NovaTune API", "ASP.NET Core service that handles authentication, uploads, streaming, and track management")
+    System(bg, "Background Workers", ".NET worker services for waveform processing, analytics, and cleanup jobs")
+}
+
+SystemDb(raven, "RavenDB", "Metadata store for track metadata and analytics data")
+SystemDb(minio, "MinIO", "Audio object storage for uploaded audio files")
+System(queue, "Kafka / RabbitMQ", "Messaging backbone enabling event-based communication")
+System(cache, "NCache", "Distributed cache for token and signed URL caching")
+System_Ext(k8s, "Kubernetes", "Cluster orchestration that hosts the API and workers")
+System_Ext(ci, "GitHub Actions", "CI/CD pipeline that builds and deploys workloads")
+
+Rel(user, api, "Uploads / streams audio")
+Rel(admin, api, "Admin actions, view analytics")
+
+Rel(api, raven, "Persist metadata")
+Rel(api, minio, "Store / fetch audio")
+Rel(api, queue, "Publish events")
+Rel(api, cache, "Cache tokens & signed URLs")
+Rel(api, k8s, "Hosted on")
+
+Rel(bg, queue, "Consume events")
+Rel(bg, raven, "Update analytics")
+Rel(bg, minio, "Generate waveforms")
+Rel(bg, cache, "Invalidate entries")
+Rel(bg, k8s, "Hosted on")
+
+Rel(ci, k8s, "Deploy workloads")
+
+Rel(user, k8s, "Ingress")
+Rel(admin, k8s, "Ingress")
+
+@enduml

@@ -1,0 +1,62 @@
+@startuml NovaTuneComponent
+!include <C4/C4_Component>
+!pragma layout smetana
+
+Person(listener, "Listener", "Uploads and streams tracks (Req 2.x, 5.x)")
+Person(admin, "Admin", "Moderates and reviews analytics (Req 11.x)")
+
+Container_Boundary(api, "NovaTune.Api", "ASP.NET Core") {
+    Component(authController, "AuthController", "API Controller", "Registration, login, JWT issuance (Req 1.1-1.2)")
+    Component(uploadController, "UploadController", "API Controller", "Validates formats, streams uploads, records metadata (Req 2.x, 3.1)")
+    Component(streamController, "StreamingController", "API Controller", "Issues signed URLs and playback telemetry (Req 5.x)")
+    Component(trackController, "TrackManagementController", "API Controller", "Browsing, edits, deletions (Req 6.x)")
+    Component(signedUrlService, "SignedUrlService", "Application Service", "Generates/caches MinIO presigned URLs (Req 4.2, 5.2)")
+    Component(metadataService, "TrackMetadataService", "Application Service", "Persists and queries track docs/indexes (Req 2.4, 6.1)")
+    Component(eventPublisher, "EventPublisher", "Application Service", "Publishes audio-uploaded, analytics events (Req 2.6, 6.2, 9.x)")
+    Component(cacheClient, "CacheClient", "NCache Adapter", "Caches tokens, signed URLs, revocation flags (Req 4.2, 5.2, 10.5)")
+    Component(audioStorageClient, "AudioStorageClient", "MinIO Adapter", "Streams objects, manages lifecycle (Req 2.3, 4.1)")
+}
+
+Container_Boundary(workers, "Background Workers", ".NET Worker Services") {
+    Component(uploadConsumer, "UploadEventConsumer", "Worker", "Consumes Kafka/RabbitMQ events for waveform & analytics (Req 3.x, 9.x)")
+    Component(cleanupJob, "LifecycleCleanupJob", "Worker", "Purges orphaned objects & invalidates cache (Req 4.4, NF-6.1)")
+}
+
+SystemDb(raven, "RavenDB", "Document DB", "Track metadata, analytics, playlists")
+SystemDb(minio, "MinIO", "Object Storage", "Private audio buckets with versioning")
+System(queue, "Kafka / RabbitMQ", "Messaging Backbone", "Upload + telemetry topics")
+System(cache, "NCache", "Distributed Cache", "Token + signed URL cache")
+System_Ext(k8s, "Kubernetes", "Cluster", "Hosts API pods & workers (NF-1.1, NF-2.1)")
+
+Rel(listener, authController, "Register/login (Req 1.1-1.2)")
+Rel(listener, uploadController, "Upload tracks (Req 2.x)")
+Rel(listener, streamController, "Stream tracks (Req 5.x)")
+Rel(listener, trackController, "Manage uploads (Req 6.x)")
+Rel(admin, trackController, "Moderate/manage (Req 11.3)")
+
+Rel(authController, cacheClient, "Cache JWT/session data (Req 10.5)")
+Rel(uploadController, signedUrlService, "Request upload URL (Req 2.2-2.3)")
+Rel(uploadController, metadataService, "Store metadata (Req 2.4)")
+Rel(uploadController, eventPublisher, "Publish audio-uploaded (Req 2.6)")
+Rel(uploadController, audioStorageClient, "Stream object to MinIO (Req 2.3)")
+Rel(streamController, signedUrlService, "Fetch streaming URL (Req 5.2)")
+Rel(streamController, cacheClient, "Reuse signed URL/token (Req 5.2)")
+Rel(trackController, metadataService, "Query/update docs (Req 6.1-6.3)")
+
+Rel(signedUrlService, cacheClient, "Store/retrieve signed URLs (Req 4.2, 5.2)")
+Rel(metadataService, raven, "RavenDB session (Req 2.4, NF-6.2)")
+Rel(audioStorageClient, minio, "MinIO SDK (Req 4.1)")
+Rel(eventPublisher, queue, "Produce events (Req 2.6, 6.2, 9.1)")
+Rel(cacheClient, cache, "NCache cluster (Req 4.2, 5.2)")
+
+Rel(uploadConsumer, queue, "Consume upload events (Req 3.3)")
+Rel(uploadConsumer, minio, "Fetch audio for waveform (Req 3.3)")
+Rel(uploadConsumer, raven, "Persist analytics/waveform (Req 3.3, 9.x)")
+Rel(cleanupJob, queue, "Listen for tombstones (Req 4.4)")
+Rel(cleanupJob, minio, "Delete orphaned objects (Req 4.4, NF-6.1)")
+Rel(cleanupJob, cache, "Invalidate cached URLs (Req 4.4)")
+
+Rel(api, k8s, "Deployed as pods (NF-1.3, NF-2.1)")
+Rel(workers, k8s, "Scheduled worker pods (NF-2.1)")
+
+@enduml
