@@ -1,7 +1,7 @@
 # NovaTune – Implementation Plan
 
-> **Version:** 2.1
-> **Last Updated:** 2025-11-23
+> **Version:** 2.2
+> **Last Updated:** 2025-12-06
 > **Status:** Active
 
 This document defines the phased implementation roadmap for NovaTune. Each phase builds upon prior deliverables and maps directly to functional requirements ([functional.md](../requirements/functional.md)) and non-functional requirements ([non_functional.md](../requirements/non_functional.md)).
@@ -28,10 +28,10 @@ Reference phase numbers and requirement IDs in tickets, commits, and PRs (e.g., 
 
 | Phase | Name | FR Coverage | NFR Coverage | Key Deliverables | Status |
 |-------|------|-------------|--------------|------------------|--------|
-| 1 | Infrastructure & Domain Foundation | — | NF-3.1, NF-8.1, NF-9.1 | Aspire setup, Docker infra, base entities | ⏳ |
+| 1 | Infrastructure & Domain Foundation | — | NF-3.1, NF-3.6, NF-8.1, NF-9.1 | Aspire setup, Docker infra, base entities, security headers | ⏳ |
 | 2 | User Management | FR 1.x | NF-3.2–3.4, NF-6.2 | Auth system, JWT flow, profile APIs | ⏳ |
-| 3 | Audio Upload Pipeline | FR 2.x, FR 3.x | NF-1.1–1.2, NF-1.6, NF-3.5 | Upload API, MinIO integration, Kafka events | ⏳ |
-| 4 | Storage & Access Control | FR 4.x | NF-1.3, NF-3.2, NF-6.1, NF-6.4 | Presigned URLs, NCache, lifecycle jobs | ⏳ |
+| 3 | Audio Upload Pipeline | FR 2.x, FR 3.x | NF-1.1–1.2, NF-1.6, NF-3.5 | Upload API, MinIO integration, Kafka events, checksum validation | ⏳ |
+| 4 | Storage & Access Control | FR 4.x | NF-1.3, NF-3.2, NF-6.1, NF-6.4 | Presigned URLs, NCache, lifecycle jobs, stampede prevention | ⏳ |
 | 5 | Audio Streaming | FR 5.x | NF-1.1, NF-1.5, NF-7.x | Streaming gateway, range requests, YARP | ⏳ |
 | 6 | Track Management | FR 6.x | NF-1.4, NF-6.2–6.3 | CRUD APIs, search, RavenDB indexes | ⏳ |
 | 7 | Optional Features | FR 7.x, FR 8.x | NF-6.2, NF-7.1–7.2 | Playlists, sharing | ⏳ |
@@ -82,7 +82,8 @@ Configure the existing Aspire project structure with infrastructure dependencies
 | NFR ID | Requirement | Implementation |
 |--------|-------------|----------------|
 | NF-3.1 | Secrets Management | Configure `dotnet user-secrets` for local dev |
-| NF-8.1 | Solution Hygiene | Organize folders within existing projects |
+| NF-3.6 | HTTP Security Headers | Configure HSTS, CSP, X-Frame-Options, X-Content-Type-Options |
+| NF-8.1 | Solution Hygiene | Organize folders within existing Aspire projects |
 | NF-8.4 | API Documentation | Set up Scalar OpenAPI infrastructure |
 | NF-9.1 | API Versioning | Establish `/api/v1/` convention |
 | NF-9.3 | Service Discovery | Configure Dotnet Aspire orchestration |
@@ -123,6 +124,7 @@ Configure the existing Aspire project structure with infrastructure dependencies
    - Scalar OpenAPI documentation at `/docs`
    - API versioning via `/api/v1/` prefix
    - CORS configuration
+   - HTTP security headers middleware (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
 
 ### Infrastructure Setup
 
@@ -132,6 +134,8 @@ Configure the existing Aspire project structure with infrastructure dependencies
 - [ ] OpenTelemetry exporters (metrics, traces) via ServiceDefaults
 - [ ] Serilog structured logging with correlation IDs
 - [ ] `.env.example` documenting all required variables
+- [ ] Minimum resource requirements documented (≥8GB RAM for full infra stack)
+- [ ] FFmpeg/FFprobe base Docker image configuration
 
 ### Testing Requirements
 
@@ -210,6 +214,12 @@ Implement complete user lifecycle management with secure authentication using AS
    - Refresh token: 7-day sliding expiration
    - Token revocation via NCache blocklist
    - Claims: `userId`, `email`, `roles`, `iat`, `exp`
+   - **Security requirements:**
+     - Asymmetric signing (RS256 or ES256); HS256 prohibited
+     - Include `kid` (key ID) in JWT header for key rotation
+     - Validate `iss` (issuer) and `aud` (audience) on every request
+     - Clock skew tolerance: ±2 minutes for `exp`/`nbf` validation
+     - JWKS endpoint at `/.well-known/jwks.json` for public key distribution
 
 3. **API Endpoints**:
    | Endpoint | Method | Description |
@@ -315,11 +325,18 @@ Build a robust audio upload system with streaming to MinIO, format validation vi
 ### Deliverables
 
 1. **MinIO Integration Adapter**:
-   - `IStorageService` interface in `Application.Abstractions`
-   - `MinioStorageService` implementation in `Infrastructure`
+   - `IStorageService` interface in `Services/`
+   - `MinioStorageService` implementation in `Infrastructure/`
    - Multipart upload for files >5 MB
    - Object key format: `{env}/{userId}/{trackId}/{version}/{filename}`
    - Bucket configuration: `novatune-{env}-audio`
+   - **Checksum validation:**
+     - Compute SHA-256 checksum on upload completion
+     - Validate `Content-MD5` header if provided by client; return 400 on mismatch
+     - Store checksum alongside `ObjectKey` in RavenDB track document
+   - **Versioning lifecycle:**
+     - MinIO lifecycle rules: retain last 3 versions, expire older after 7 days
+     - Lifecycle rules preserve versions during 30-day soft-delete recovery window
 
 2. **Upload API**:
    | Endpoint | Method | Description |
@@ -339,6 +356,7 @@ Build a robust audio upload system with streaming to MinIO, format validation vi
    - Bitrate, sample rate, channels
    - ID3 tags (title, artist) if present
    - File size verification
+   - SHA-256 checksum (stored in track document)
 
 5. **Kafka Event Publishing**:
    ```json
@@ -379,9 +397,12 @@ Build a robust audio upload system with streaming to MinIO, format validation vi
 |------|--------|----------|
 | Unit | Validation logic | 100% |
 | Unit | Metadata extraction | All supported formats |
+| Unit | Checksum computation | SHA-256, MD5 validation |
+| Property-based | Filename sanitization | FsCheck edge cases |
 | Integration | MinIO upload | Success, failure, multipart |
 | Integration | Kafka publishing | Event schema validation |
 | Integration | End-to-end upload | Full pipeline |
+| Integration | Checksum mismatch | 400 response verification |
 | Load | Concurrent uploads | 50 simultaneous |
 
 ### Exit Criteria
@@ -391,6 +412,8 @@ Build a robust audio upload system with streaming to MinIO, format validation vi
 - [ ] Rejects oversized files with 413 status
 - [ ] Progress events stream via SSE
 - [ ] Metadata captured accurately in RavenDB
+- [ ] SHA-256 checksum computed and stored for each upload
+- [ ] Content-MD5 mismatch returns 400 Bad Request
 - [ ] Kafka event published within 5 seconds
 - [ ] Upload latency <3s p50 for ≤50 MB files
 - [ ] ≥80% test coverage for upload pipeline
@@ -453,6 +476,13 @@ Implement secure access to stored audio with presigned URL generation, caching v
    - Cache TTL: 8 minutes (80% of presigned TTL)
    - LRU eviction when >80% capacity
    - Cache hit target: >90%
+   - **Cache stampede prevention:**
+     - Single-flight pattern via `SemaphoreSlim` for concurrent cache misses
+     - Jittered TTL: base TTL * (0.9 + random * 0.2) to prevent synchronized expiration
+     - Request coalescing: concurrent requests for same key share single generation
+   - **Time abstraction:**
+     - Use `TimeProvider` (.NET 8+) or `IClock` interface for TTL calculations
+     - Enables deterministic testing with fixed clocks
 
 3. **Access Control Enforcement**:
    - Ownership verification middleware
@@ -484,7 +514,10 @@ Implement secure access to stored audio with presigned URL generation, caching v
 |------|--------|----------|
 | Unit | Presigned URL generation | TTL, signatures |
 | Unit | Access control logic | Owner, shared, denied |
+| Unit | Jittered TTL calculation | Distribution validation |
+| Unit | TimeProvider/IClock usage | Fixed clock tests |
 | Integration | NCache operations | Set, get, eviction |
+| Integration | Single-flight pattern | Concurrent request coalescing |
 | Integration | Lifecycle job | Tombstone processing |
 | Integration | Orphan cleanup | Detection and deletion |
 
@@ -492,6 +525,9 @@ Implement secure access to stored audio with presigned URL generation, caching v
 
 - [ ] Presigned URLs generated with correct TTL
 - [ ] NCache hit rate >90% under normal load
+- [ ] Single-flight pattern prevents cache stampede
+- [ ] Jittered TTL applied to all cached entries
+- [ ] TimeProvider used for all TTL calculations (testable)
 - [ ] Fallback to direct generation when cache unavailable
 - [ ] Unauthorized access returns 403
 - [ ] Lifecycle job processes tombstones correctly
@@ -967,14 +1003,32 @@ Complete the platform with analytics dashboards, administrative controls, and pr
 
 | Phase | Observability Milestone |
 |-------|------------------------|
-| 1 | OpenTelemetry exporters, Serilog setup |
-| 2 | Auth metrics, login/logout traces |
-| 3 | Upload metrics, processing traces |
-| 4 | Cache hit rates, lifecycle job metrics |
-| 5 | Streaming latency, bandwidth metrics |
+| 1 | OpenTelemetry exporters, Serilog setup, HTTP security headers |
+| 2 | Auth metrics (`novatune_auth_login_total`), login/logout traces |
+| 3 | Upload metrics (`novatune_upload_duration_seconds`), processing traces |
+| 4 | Cache hit rates (`novatune_presigned_cache_hit_total`), lifecycle job metrics (`novatune_cleanup_objects_total`) |
+| 5 | Streaming metrics (`novatune_stream_active_total`), bandwidth metrics |
 | 6 | Query performance, index stats |
 | 7 | Playlist/share metrics |
 | 8 | Full dashboards, alerting |
+
+**Canonical Metric Names (OTEL Semantic Conventions):**
+
+| Metric | Labels | FR/NF Reference |
+|--------|--------|-----------------|
+| `novatune_upload_duration_seconds` | `{status, format}` | FR 2.5, NF-1.2 |
+| `novatune_stream_active_total` | `{userId_hash}` | FR 5.1, NF-1.1 |
+| `novatune_presigned_cache_hit_total` | `{outcome=hit\|miss}` | FR 5.2, NF-6.4 |
+| `novatune_cleanup_objects_total` | `{action=deleted\|skipped}` | FR 4.4, NF-6.1 |
+| `novatune_auth_login_total` | `{status=success\|failure}` | FR 1.2, NF-3.4 |
+
+**SLO Alert Thresholds:**
+
+| Metric | Threshold | Severity |
+|--------|-----------|----------|
+| `novatune_upload_duration_seconds` p95 | >5s | P2-High |
+| `novatune_presigned_cache_hit_total` rate | <80% | P4-Low |
+| RabbitMQ DLQ depth | >100 | P3-Medium |
 
 #### Resilience (NF-2.x)
 
@@ -989,27 +1043,43 @@ Complete the platform with analytics dashboards, administrative controls, and pr
 
 | Phase | Pipeline Additions |
 |-------|-------------------|
-| 1 | Build, format check, basic tests |
+| 1 | Build, format check, basic tests, secret scanning |
 | 2 | Coverage gate (80% Services), auth tests |
-| 3 | Integration tests (Testcontainers) |
-| 4 | NCache/MinIO integration tests |
-| 5 | E2E streaming tests |
-| 6 | Performance benchmarks |
+| 3 | Integration tests (Testcontainers), property-based tests |
+| 4 | NCache/MinIO integration tests, cache stampede tests |
+| 5 | E2E streaming tests, HTTP Range request tests |
+| 6 | Performance benchmarks, k6 load tests |
 | 7 | Full E2E suite |
-| 8 | SAST, DAST, dependency scanning |
+| 8 | SAST, DAST, dependency scanning, OpenAPI diff check |
+
+**Additional CI Enhancements (NF-5.1):**
+- OpenAPI schema diff check (fail on breaking changes without version bump)
+- Secret scanning (gitleaks or similar)
+- Test artifact upload: coverage reports, k6 HTML reports
+- Aspire integration test with Testcontainers for full stack verification
 
 #### Documentation Requirements
 
 | Phase | Documentation Deliverable |
 |-------|--------------------------|
-| 1 | README.md, CLAUDE.md, AGENTS.md |
-| 2 | Auth API documentation (Scalar) |
-| 3 | Upload API documentation, event schemas |
-| 4 | Cache configuration guide |
-| 5 | Streaming integration guide |
+| 1 | README.md (with quickstart), CLAUDE.md, AGENTS.md, `.env.example` |
+| 2 | Auth API documentation (Scalar), ADR-0001 (Blazor selection) |
+| 3 | Upload API documentation, event schemas, ADR-0003 (Kafka vs RabbitMQ) |
+| 4 | Cache configuration guide, ADR-0002 (NCache selection), ADR-0004 (Presigned URL TTL) |
+| 5 | Streaming integration guide, ADR-0005 (YARP placement) |
 | 6 | Search/filter API documentation |
 | 7 | Playlist/share API documentation |
-| 8 | Admin guide, runbooks |
+| 8 | Admin guide, runbooks, COMMITTING.md |
+
+**ADR Directory (`doc/adr/`):**
+
+| ADR ID | Title | Decision Summary |
+|--------|-------|------------------|
+| ADR-0001 | Frontend Framework | Blazor selected for .NET ecosystem integration |
+| ADR-0002 | Caching Solution | NCache selected over Redis for .NET native support |
+| ADR-0003 | Message Broker Roles | Kafka for events, RabbitMQ for task queues |
+| ADR-0004 | Presigned URL TTL | 10 min TTL with 8 min cache for safety margin |
+| ADR-0005 | API Gateway Placement | YARP embedded in ApiService, not edge gateway |
 
 ---
 
@@ -1030,7 +1100,7 @@ Complete the platform with analytics dashboards, administrative controls, and pr
 
 | Phase | Functional Requirements | Non-Functional Requirements |
 |-------|------------------------|----------------------------|
-| 1 | — | NF-3.1, NF-8.1, NF-8.4, NF-9.1, NF-9.3 |
+| 1 | — | NF-3.1, NF-3.6, NF-8.1, NF-8.4, NF-9.1, NF-9.3 |
 | 2 | FR 1.1–1.4 | NF-3.2–3.4, NF-6.2 |
 | 3 | FR 2.1–2.6, FR 3.1–3.3 | NF-1.1–1.2, NF-1.6, NF-2.2, NF-3.5, NF-6.3, NF-9.2 |
 | 4 | FR 4.1–4.4 | NF-1.3, NF-2.4, NF-3.2, NF-6.1, NF-6.4 |
@@ -1046,6 +1116,7 @@ Complete the platform with analytics dashboards, administrative controls, and pr
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.2 | 2025-12-06 | Improvements from doc/plan/improve.md: Added checksum validation (Phase 3), cache stampede prevention with jittered TTL (Phase 4), canonical metric names and SLO thresholds (Cross-cutting), HTTP security headers (Phase 1), JWT security enhancements (Phase 2), ADR documentation requirements, CI pipeline enhancements, TimeProvider/IClock abstraction, property-based testing |
 | 2.1 | 2025-11-23 | Simplified Phase 1: use existing Aspire structure instead of layered architecture, defer abstraction to when complexity demands it |
 | 2.0 | 2025-11-23 | Comprehensive rewrite: added metadata, legend, phase overview table, dependency matrix, detailed per-phase sections with FR/NFR coverage, deliverables, exit criteria, risks, cross-cutting concerns, milestone summary, traceability matrix |
 | 1.0 | 2025-11-22 | Initial 8-phase outline |
