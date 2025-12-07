@@ -18,7 +18,7 @@ public class UserTests
         };
 
         var results = ValidateModel(user);
-        Assert.Empty(results);
+        results.ShouldBeEmpty();
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public class UserTests
         };
 
         var results = ValidateModel(user);
-        Assert.Contains(results, r => r.MemberNames.Contains(nameof(User.Email)));
+        results.ShouldContain(r => r.MemberNames.Contains(nameof(User.Email)));
     }
 
     [Fact]
@@ -48,14 +48,14 @@ public class UserTests
         };
 
         var results = ValidateModel(user);
-        Assert.Contains(results, r => r.MemberNames.Contains(nameof(User.DisplayName)));
+        results.ShouldContain(r => r.MemberNames.Contains(nameof(User.DisplayName)));
     }
 
     [Fact]
     public void User_DefaultStatus_IsActive()
     {
         var user = new User();
-        Assert.Equal(UserStatus.Active, user.Status);
+        user.Status.ShouldBe(UserStatus.Active);
     }
 
     private static List<ValidationResult> ValidateModel(object model)

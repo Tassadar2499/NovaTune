@@ -18,7 +18,7 @@ public class TrackTests
         };
 
         var results = ValidateModel(track);
-        Assert.Empty(results);
+        results.ShouldBeEmpty();
     }
 
     [Fact]
@@ -33,14 +33,14 @@ public class TrackTests
         };
 
         var results = ValidateModel(track);
-        Assert.Contains(results, r => r.MemberNames.Contains(nameof(Track.Title)));
+        results.ShouldContain(r => r.MemberNames.Contains(nameof(Track.Title)));
     }
 
     [Fact]
     public void Track_DefaultStatus_IsProcessing()
     {
         var track = new Track();
-        Assert.Equal(TrackStatus.Processing, track.Status);
+        track.Status.ShouldBe(TrackStatus.Processing);
     }
 
     [Fact]
@@ -65,9 +65,9 @@ public class TrackTests
             Metadata = metadata
         };
 
-        Assert.NotNull(track.Metadata);
-        Assert.Equal("mp3", track.Metadata.Format);
-        Assert.Equal(320000, track.Metadata.Bitrate);
+        track.Metadata.ShouldNotBeNull();
+        track.Metadata.Format.ShouldBe("mp3");
+        track.Metadata.Bitrate.ShouldBe(320000);
     }
 
     private static List<ValidationResult> ValidateModel(object model)
