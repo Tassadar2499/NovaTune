@@ -322,6 +322,82 @@ echo "All services are ready!"
 
 ---
 
+### 1.3.7 JetBrains Rider Dev Containers
+
+> Goal: Develop inside a reproducible Docker dev container using JetBrains Rider while controlling local infra via Docker. This supports NF-8.1/NF-8.3 and aligns with the stack (Docker, Aspire) in `doc/requirements/stack.md`.
+
+- [ ] Prereqs
+  - JetBrains Rider 2024.2+ with the Dev Containers plugin
+  - Docker Desktop (or Docker Engine) installed and running
+  - Git installed on host
+
+- [ ] Add `.devcontainer/devcontainer.json` (example)
+
+```json
+{
+  "name": "NovaTune Dev",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:1-8.0-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "mounts": [
+    "source=${localEnv:HOME}/.nuget/packages,target=/home/vscode/.nuget/packages,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "dotnet --info && dotnet restore",
+  "forwardPorts": [8080, 9000, 9001, 9092, 15672, 8250, 9800],
+  "portsAttributes": {
+    "8080": { "label": "RavenDB" },
+    "9000": { "label": "MinIO API" },
+    "9001": { "label": "MinIO Console" },
+    "9092": { "label": "Kafka" },
+    "15672": { "label": "RabbitMQ Mgmt" },
+    "8250": { "label": "NCache Mgmt" },
+    "9800": { "label": "NCache Client" }
+  },
+  "customizations": {
+    "jetbrains": {
+      "ide": "Rider"
+    }
+  }
+}
+```
+
+Notes
+- The `docker-outside-of-docker` feature mounts the host Docker socket so you can run `docker compose` from inside the dev container (no separate DinD).
+- The base image includes .NET SDK 8; Rider will use it for builds/tests. Adjust if targeting a newer SDK.
+
+- [ ] Open in Rider Dev Container
+  1. In Rider: Tools → Dev Containers → Open Folder in Dev Container…
+  2. Select the repo root (detects `.devcontainer/devcontainer.json`).
+  3. Rider builds the container and attaches to it; open `src/NovaTuneApp/NovaTuneApp.sln`.
+
+- [ ] Start infra from inside the dev container
+
+```bash
+# From repo root inside the devcontainer shell
+docker compose up -d            # or: docker compose up infra
+./scripts/wait-for-services.sh  # optional: wait until healthy
+```
+
+- [ ] Run the app in the dev container
+
+```bash
+dotnet restore
+dotnet build
+dotnet run --project src/NovaTuneApp/NovaTuneApp.AppHost
+# or just the API
+dotnet run --project src/NovaTuneApp/NovaTuneApp.ApiService
+```
+
+Troubleshooting
+- If `docker` permission denied: reopen the dev container (the feature adds your user to the docker group), or run a new shell.
+- Port collisions: stop any host services bound to the same ports before `docker compose up`.
+- Environment: copy `.env.example` to `.env` on the host; it will be visible inside the dev container.
+
+---
+
 ## Verification Commands
 
 ```bash
