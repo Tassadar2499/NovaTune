@@ -52,3 +52,11 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Local docker compose overrides
+docker-compose.local.yml
