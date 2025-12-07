@@ -6,7 +6,7 @@ namespace NovaTune.UnitTests.Models;
 public class UserTests
 {
     [Fact]
-    public void User_WithValidData_PassesValidation()
+    public void Should_pass_with_valid_data()
     {
         var user = new User
         {
@@ -22,7 +22,7 @@ public class UserTests
     }
 
     [Fact]
-    public void User_WithInvalidEmail_FailsValidation()
+    public void Should_fail_with_invalid_email()
     {
         var user = new User
         {
@@ -37,7 +37,7 @@ public class UserTests
     }
 
     [Fact]
-    public void User_WithEmptyDisplayName_FailsValidation()
+    public void Should_fail_with_empty_display_name()
     {
         var user = new User
         {
@@ -52,7 +52,7 @@ public class UserTests
     }
 
     [Fact]
-    public void User_DefaultStatus_IsActive()
+    public void Should_default_to_active_status()
     {
         var user = new User();
         user.Status.ShouldBe(UserStatus.Active);

@@ -6,7 +6,7 @@ namespace NovaTune.UnitTests.Models;
 public class TrackTests
 {
     [Fact]
-    public void Track_WithValidData_PassesValidation()
+    public void Should_pass_with_valid_data()
     {
         var track = new Track
         {
@@ -22,7 +22,7 @@ public class TrackTests
     }
 
     [Fact]
-    public void Track_WithEmptyTitle_FailsValidation()
+    public void Should_fail_with_empty_title()
     {
         var track = new Track
         {
@@ -37,14 +37,14 @@ public class TrackTests
     }
 
     [Fact]
-    public void Track_DefaultStatus_IsProcessing()
+    public void Should_default_to_processing_status()
     {
         var track = new Track();
         track.Status.ShouldBe(TrackStatus.Processing);
     }
 
     [Fact]
-    public void Track_WithMetadata_StoresCorrectly()
+    public void Should_store_metadata_correctly()
     {
         var metadata = new AudioMetadata
         {
