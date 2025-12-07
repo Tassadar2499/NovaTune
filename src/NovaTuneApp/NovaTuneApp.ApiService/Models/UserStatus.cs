@@ -1,8 +1,9 @@
 namespace NovaTuneApp.ApiService.Models;
 
-public enum UserStatus
+public enum UserStatus : byte
 {
-    Active,
-    Disabled,
-    PendingDeletion
+    Unknown = 0,
+    Active = 1,
+    Disabled = 2,
+    PendingDeletion = 3
 }

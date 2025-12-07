@@ -1,9 +1,10 @@
 namespace NovaTuneApp.ApiService.Models;
 
-public enum TrackStatus
+public enum TrackStatus : byte
 {
-    Processing,
-    Ready,
-    Failed,
-    Deleted
+    Unknown = 0,
+    Processing = 1,
+    Ready = 2,
+    Failed = 3,
+    Deleted = 4
 }
