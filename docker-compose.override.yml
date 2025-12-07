@@ -1,0 +1,114 @@
+version: '3.8'
+
+# =============================================================================
+# Development-specific overrides for local development
+# This file is automatically merged with docker-compose.yml
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # RavenDB Development Settings
+  # ---------------------------------------------------------------------------
+  ravendb:
+    environment:
+      # License file path (mount your license for production features)
+      - RAVEN_License_Path=/opt/RavenDB/Server/license.json
+      # Enable detailed logging for debugging
+      - RAVEN_Logs_Mode=Information
+    # Uncomment to mount a license file for development:
+    # volumes:
+    #   - ./config/ravendb-license.json:/opt/RavenDB/Server/license.json:ro
+
+  # ---------------------------------------------------------------------------
+  # MinIO Development Settings
+  # ---------------------------------------------------------------------------
+  minio:
+    environment:
+      # Allow environment variable override for credentials
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+      # Enable browser console access
+      - MINIO_BROWSER=on
+    # Create default bucket on startup
+    entrypoint: >
+      /bin/sh -c "
+      mkdir -p /data/novatune-dev-audio;
+      minio server /data --console-address ':9001';
+      "
+
+  # ---------------------------------------------------------------------------
+  # Kafka Development Settings
+  # ---------------------------------------------------------------------------
+  kafka:
+    environment:
+      # Auto-create topics for development convenience
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      # Faster log cleanup for development
+      - KAFKA_LOG_RETENTION_HOURS=24
+      - KAFKA_LOG_RETENTION_BYTES=1073741824
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ---------------------------------------------------------------------------
+  # RabbitMQ Development Settings
+  # ---------------------------------------------------------------------------
+  rabbitmq:
+    environment:
+      # Enable all feature flags for testing
+      - RABBITMQ_FEATURE_FLAGS=all
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ---------------------------------------------------------------------------
+  # NCache Development Settings
+  # ---------------------------------------------------------------------------
+  ncache:
+    environment:
+      # Development mode with relaxed settings
+      - NCACHE_LICENSE_TYPE=DEV
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ---------------------------------------------------------------------------
+  # Optional: Add development-only services
+  # ---------------------------------------------------------------------------
+
+  # Kafka UI for topic inspection
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: novatune-kafka-ui
+    ports:
+      - "8081:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=novatune-local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    depends_on:
+      - kafka
+    profiles:
+      - debug
+    networks:
+      - novatune-network
+
+  # Mailhog for email testing (useful for auth flows)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: novatune-mailhog
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    profiles:
+      - debug
+    networks:
+      - novatune-network
