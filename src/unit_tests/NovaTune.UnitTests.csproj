@@ -8,9 +8,7 @@
         <IsTestProject>true</IsTestProject>
     </PropertyGroup>
 
-
     <ItemGroup>
-        <PackageReference Include="Aspire.Hosting.Testing" Version="13.0.0"/>
         <PackageReference Include="coverlet.collector" Version="6.0.2"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1"/>
         <PackageReference Include="xunit" Version="2.9.3"/>
@@ -18,15 +16,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\NovaTuneApp.AppHost\NovaTuneApp.AppHost.csproj"/>
-        <ProjectReference Include="..\NovaTuneApp.ApiService\NovaTuneApp.ApiService.csproj"/>
+        <ProjectReference Include="..\NovaTuneApp\NovaTuneApp.ApiService\NovaTuneApp.ApiService.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <Using Include="System.Net"/>
-        <Using Include="Microsoft.Extensions.DependencyInjection"/>
-        <Using Include="Aspire.Hosting.ApplicationModel"/>
-        <Using Include="Aspire.Hosting.Testing"/>
         <Using Include="Xunit"/>
     </ItemGroup>
 
