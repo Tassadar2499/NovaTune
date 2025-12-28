@@ -74,7 +74,6 @@ docker compose down -v
 | `.env.example` | Repository root | [ ] |
 | `healthcheck.sh` | `scripts/` | [ ] |
 | `wait-for-services.sh` | `scripts/` | [ ] |
-| `devcontainer.json` | `.devcontainer/` | [ ] |
 
 ## Dependencies
 
