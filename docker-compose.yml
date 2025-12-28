@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ravendb:
     image: ravendb/ravendb:6.0-ubuntu-latest
@@ -89,12 +87,12 @@ services:
     image: alachisoft/ncache:latest
     container_name: novatune-ncache
     ports:
-      - "8250:8250"   # Management Web UI
+      - "8250:8251"   # Management Web UI (container listens on 8251)
       - "9800:9800"   # Client connection port
     volumes:
       - ncache-data:/opt/ncache
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8250/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8251/"]
       interval: 30s
       timeout: 10s
       retries: 5

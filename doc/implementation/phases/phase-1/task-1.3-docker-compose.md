@@ -2,7 +2,7 @@
 
 > **Phase:** 1 - Infrastructure & Domain Foundation
 > **Priority:** P1 (Must-have)
-> **Status:** Pending
+> **Status:** Completed
 
 ## Description
 
@@ -14,7 +14,7 @@ Set up Docker Compose for local infrastructure dependencies.
 
 ### 1.3.1 Create Main Docker Compose File
 
-- [ ] Create `docker-compose.yml` with all services:
+- [x] Create `docker-compose.yml` with all services:
 
 ```yaml
 version: '3.8'
@@ -122,7 +122,7 @@ volumes:
 
 ### 1.3.2 Create Docker Compose Override
 
-- [ ] Create `docker-compose.override.yml` for development-specific settings:
+- [x] Create `docker-compose.override.yml` for development-specific settings:
 
 ```yaml
 version: '3.8'
@@ -158,7 +158,7 @@ services:
 
 ### 1.3.3 Create Environment Variables Template
 
-- [ ] Create `.env.example` with all required environment variables:
+- [x] Create `.env.example` with all required environment variables:
 
 ```bash
 # ===========================================
@@ -222,7 +222,7 @@ ASPNETCORE_URLS=https://localhost:5001;http://localhost:5000
 
 ### 1.3.4 Document Resource Requirements
 
-- [ ] Document minimum resource requirements
+- [x] Document minimum resource requirements
 
 **Minimum Requirements:**
 | Resource | Minimum | Recommended |
@@ -244,7 +244,7 @@ ASPNETCORE_URLS=https://localhost:5001;http://localhost:5000
 
 ### 1.3.5 Create Health Check Scripts
 
-- [ ] Create `scripts/healthcheck.sh`:
+- [x] Create `scripts/healthcheck.sh`:
 
 ```bash
 #!/bin/bash
@@ -272,7 +272,7 @@ echo "All services healthy!"
 
 ### 1.3.6 Create Startup Wait Script
 
-- [ ] Create `scripts/wait-for-services.sh`:
+- [x] Create `scripts/wait-for-services.sh`:
 
 ```bash
 #!/bin/bash
@@ -315,10 +315,10 @@ echo "All services are ready!"
 
 ## Acceptance Criteria
 
-- [ ] `docker compose up` starts all services
-- [ ] All services pass health checks
-- [ ] `.env.example` documents all variables
-- [ ] README includes startup instructions
+- [x] `docker compose up` starts all services
+- [x] All services pass health checks
+- [x] `.env.example` documents all variables
+- [x] README includes startup instructions
 
 ---
 
@@ -326,12 +326,12 @@ echo "All services are ready!"
 
 > Goal: Develop inside a reproducible Docker dev container using JetBrains Rider while controlling local infra via Docker. This supports NF-8.1/NF-8.3 and aligns with the stack (Docker, Aspire) in `doc/requirements/stack.md`.
 
-- [ ] Prereqs
+- [x] Prereqs
   - JetBrains Rider 2024.2+ with the Dev Containers plugin
   - Docker Desktop (or Docker Engine) installed and running
   - Git installed on host
 
-- [ ] Add `.devcontainer/devcontainer.json` (example)
+- [x] Add `.devcontainer/devcontainer.json` (example)
 
 ```json
 {
@@ -368,12 +368,12 @@ Notes
 - The `docker-outside-of-docker` feature mounts the host Docker socket so you can run `docker compose` from inside the dev container (no separate DinD).
 - The base image includes .NET SDK 8; Rider will use it for builds/tests. Adjust if targeting a newer SDK.
 
-- [ ] Open in Rider Dev Container
+- [x] Open in Rider Dev Container
   1. In Rider: Tools → Dev Containers → Open Folder in Dev Container…
   2. Select the repo root (detects `.devcontainer/devcontainer.json`).
   3. Rider builds the container and attaches to it; open `src/NovaTuneApp/NovaTuneApp.sln`.
 
-- [ ] Start infra from inside the dev container
+- [x] Start infra from inside the dev container
 
 ```bash
 # From repo root inside the devcontainer shell
@@ -381,7 +381,7 @@ docker compose up -d            # or: docker compose up infra
 ./scripts/wait-for-services.sh  # optional: wait until healthy
 ```
 
-- [ ] Run the app in the dev container
+- [x] Run the app in the dev container
 
 ```bash
 dotnet restore
@@ -421,11 +421,12 @@ docker compose down
 
 ## File Checklist
 
-- [ ] `docker-compose.yml`
-- [ ] `docker-compose.override.yml`
-- [ ] `.env.example`
-- [ ] `scripts/healthcheck.sh`
-- [ ] `scripts/wait-for-services.sh`
+- [x] `docker-compose.yml`
+- [x] `docker-compose.override.yml`
+- [x] `.env.example`
+- [x] `scripts/healthcheck.sh`
+- [x] `scripts/wait-for-services.sh`
+- [x] `.devcontainer/devcontainer.json`
 
 ---
 
