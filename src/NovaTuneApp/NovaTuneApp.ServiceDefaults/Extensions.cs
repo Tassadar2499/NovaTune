@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -126,5 +127,20 @@ public static class Extensions
         }
 
         return app;
+    }
+
+    public static TBuilder AddDefaultCaching<TBuilder>(this TBuilder builder)
+        where TBuilder : IHostApplicationBuilder
+    {
+        builder.AddRedisClient("cache");
+        return builder;
+    }
+
+    public static TBuilder AddDefaultMessaging<TBuilder>(this TBuilder builder)
+        where TBuilder : IHostApplicationBuilder
+    {
+        // Kafka client configuration for Redpanda
+        builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection("Kafka"));
+        return builder;
     }
 }
