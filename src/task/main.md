@@ -5,6 +5,21 @@ Replace Kafka and RabbitMQ with Redpanda for all messaging and swap NCache for G
 
 ---
 
+## Claude Skills
+
+The following Claude skills are available in `.claude/skills/` to assist with this migration:
+
+| Skill | Directory | Purpose |
+|-------|-----------|---------|
+| **migration-redpanda-garnet** | `.claude/skills/migration-redpanda-garnet/` | Phase checklists, code patterns for KafkaFlow handlers and Garnet cache |
+| **docker-infra** | `.claude/skills/docker-infra/` | Docker Compose commands for Redpanda, Garnet, MinIO, RavenDB |
+| **build-and-run** | `.claude/skills/build-and-run/` | .NET/Aspire build, run, test, and format commands |
+| **add-api-endpoint** | `.claude/skills/add-api-endpoint/` | Minimal API endpoint patterns with proper conventions |
+| **add-entity-field** | `.claude/skills/add-entity-field/` | Add fields to entity/model classes |
+| **testing** | `.claude/skills/testing/` | Unit and integration test patterns with Testcontainers |
+
+---
+
 ## Decisions from Clarifications
 - Message format stays JSON; no Avro or Schema Registry required for this migration (schema version carried in headers).
 - RabbitMQ-only semantics (delayed delivery, priority, per-message TTL) are **not** needed; we only migrate simple pub/sub + retries.
