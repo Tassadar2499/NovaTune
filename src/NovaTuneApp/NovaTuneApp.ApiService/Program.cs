@@ -6,6 +6,7 @@ using NovaTuneApp.ApiService.Infrastructure.Caching;
 using NovaTuneApp.ApiService.Infrastructure.Messaging;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Handlers;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Messages;
+using NovaTuneApp.ApiService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,6 +94,10 @@ builder.Services.AddKafka(kafka => kafka
 builder.Services.AddSingleton<IMessageProducerService, MessageProducerService>();
 builder.Services.AddTransient<AudioUploadedHandler>();
 builder.Services.AddTransient<TrackDeletedHandler>();
+
+// Register stub services for handler dependencies.
+builder.Services.AddSingleton<ITrackService, TrackService>();
+builder.Services.AddSingleton<IStorageService, StorageService>();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
