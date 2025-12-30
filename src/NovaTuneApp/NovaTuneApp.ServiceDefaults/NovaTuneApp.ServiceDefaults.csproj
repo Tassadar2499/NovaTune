@@ -17,6 +17,9 @@
         <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.13.0"/>
         <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.13.0"/>
         <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.13.0"/>
+
+        <!-- Redis client integration (works with Garnet) -->
+        <PackageReference Include="Aspire.StackExchange.Redis" Version="9.0.0"/>
     </ItemGroup>
 
 </Project>

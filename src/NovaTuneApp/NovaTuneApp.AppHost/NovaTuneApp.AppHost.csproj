@@ -13,4 +13,11 @@
         <ProjectReference Include="..\NovaTuneApp.Web\NovaTuneApp.Web.csproj"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Redis hosting (works with Garnet) -->
+        <PackageReference Include="Aspire.Hosting.Redis" Version="9.0.0"/>
+        <!-- Kafka hosting (works with Redpanda) -->
+        <PackageReference Include="Aspire.Hosting.Kafka" Version="9.0.0"/>
+    </ItemGroup>
+
 </Project>
