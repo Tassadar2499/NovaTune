@@ -35,26 +35,9 @@ services:
       "
 
   # ---------------------------------------------------------------------------
-  # Kafka Development Settings
+  # Redpanda Development Settings
   # ---------------------------------------------------------------------------
-  kafka:
-    environment:
-      # Auto-create topics for development convenience
-      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
-      # Faster log cleanup for development
-      - KAFKA_LOG_RETENTION_HOURS=24
-      - KAFKA_LOG_RETENTION_BYTES=1073741824
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
-
-  # ---------------------------------------------------------------------------
-  # RabbitMQ Development Settings
-  # ---------------------------------------------------------------------------
-  rabbitmq:
+  redpanda:
     deploy:
       resources:
         limits:
@@ -63,12 +46,9 @@ services:
           memory: 256M
 
   # ---------------------------------------------------------------------------
-  # NCache Development Settings
+  # Garnet Development Settings
   # ---------------------------------------------------------------------------
-  ncache:
-    environment:
-      # Development mode with relaxed settings
-      - NCACHE_LICENSE_TYPE=DEV
+  garnet:
     deploy:
       resources:
         limits:
@@ -80,17 +60,16 @@ services:
   # Optional: Add development-only services
   # ---------------------------------------------------------------------------
 
-  # Kafka UI for topic inspection
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: novatune-kafka-ui
+  # Redpanda Console for topic inspection
+  redpanda-console:
+    image: redpandadata/console:v2.7.2
+    container_name: novatune-redpanda-console
     ports:
-      - "8081:8080"
+      - "8181:8080"
     environment:
-      - KAFKA_CLUSTERS_0_NAME=novatune-local
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - KAFKA_BROKERS=redpanda:9092
     depends_on:
-      - kafka
+      - redpanda
     profiles:
       - debug
     networks:
