@@ -2,38 +2,50 @@ using Microsoft.Extensions.Logging;
 
 namespace NovaTuneApp.Tests;
 
+/// <summary>
+/// Aspire end-to-end integration tests.
+/// These tests require Aspire DCP to be properly configured.
+/// Set ASPIRE_TESTS_ENABLED=true to run these tests.
+/// </summary>
 public class WebTests
 {
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
-
-    [Fact]
+    [SkippableFact]
+    [Trait("Category", "Aspire")]
     public async Task GetWebResourceRootReturnsOkStatusCode()
     {
-        // Arrange
-        var cancellationToken = new CancellationTokenSource(DefaultTimeout).Token;
+        // Skip unless explicitly enabled - Aspire DCP tests require specific infrastructure
+        var aspireTestsEnabled = Environment.GetEnvironmentVariable("ASPIRE_TESTS_ENABLED");
+        Skip.If(
+            !string.Equals(aspireTestsEnabled, "true", StringComparison.OrdinalIgnoreCase),
+            "Aspire tests are disabled. Set ASPIRE_TESTS_ENABLED=true to run.");
+
+        // Arrange - use generous timeouts for container startup
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        var cancellationToken = cts.Token;
 
         var appHost =
             await DistributedApplicationTestingBuilder.CreateAsync<Projects.NovaTuneApp_AppHost>(cancellationToken);
         appHost.Services.AddLogging(logging =>
         {
-            logging.SetMinimumLevel(LogLevel.Debug);
-            // Override the logging filters from the app's configuration
-            logging.AddFilter(appHost.Environment.ApplicationName, LogLevel.Debug);
-            logging.AddFilter("Aspire.", LogLevel.Debug);
-            // To output logs to the xUnit.net ITestOutputHelper, consider adding a package from https://www.nuget.org/packages?q=xunit+logging
+            logging.SetMinimumLevel(LogLevel.Warning);
+            logging.AddFilter("Aspire.", LogLevel.Warning);
         });
         appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
         {
             clientBuilder.AddStandardResilienceHandler();
         });
 
-        await using var app = await appHost.BuildAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
-        await app.StartAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
+        await using var app = await appHost.BuildAsync(cancellationToken);
+        await app.StartAsync(cancellationToken);
+
+        // Wait for resources in dependency order
+        await app.ResourceNotifications.WaitForResourceHealthyAsync("cache", cancellationToken);
+        await app.ResourceNotifications.WaitForResourceHealthyAsync("messaging", cancellationToken);
+        await app.ResourceNotifications.WaitForResourceHealthyAsync("apiservice", cancellationToken);
+        await app.ResourceNotifications.WaitForResourceHealthyAsync("webfrontend", cancellationToken);
 
         // Act
         var httpClient = app.CreateHttpClient("webfrontend");
-        await app.ResourceNotifications.WaitForResourceHealthyAsync("webfrontend", cancellationToken)
-            .WaitAsync(DefaultTimeout, cancellationToken);
         var response = await httpClient.GetAsync("/", cancellationToken);
 
         // Assert

@@ -1,6 +1,6 @@
 using DotNet.Testcontainers.Builders;
-using DotNet.Testcontainers.Containers;
 using Testcontainers.Redis;
+using Testcontainers.Redpanda;
 
 namespace NovaTuneApp.Tests.Fixtures;
 
@@ -9,13 +9,12 @@ namespace NovaTuneApp.Tests.Fixtures;
 /// </summary>
 public class InfrastructureFixture : IAsyncLifetime
 {
-    private const int RedpandaKafkaPort = 9092;
     private const int GarnetPort = 6379;
 
     /// <summary>
     /// Redpanda container (Kafka-compatible).
     /// </summary>
-    public IContainer Redpanda { get; private set; } = null!;
+    public RedpandaContainer Redpanda { get; private set; } = null!;
 
     /// <summary>
     /// Garnet container (Redis/RESP-compatible).
@@ -25,7 +24,7 @@ public class InfrastructureFixture : IAsyncLifetime
     /// <summary>
     /// Gets the Kafka bootstrap servers connection string.
     /// </summary>
-    public string KafkaBootstrapServers => $"{Redpanda.Hostname}:{Redpanda.GetMappedPublicPort(RedpandaKafkaPort)}";
+    public string KafkaBootstrapServers => Redpanda.GetBootstrapAddress();
 
     /// <summary>
     /// Gets the Redis/Garnet connection string.
@@ -34,22 +33,8 @@ public class InfrastructureFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        Redpanda = new ContainerBuilder()
+        Redpanda = new RedpandaBuilder()
             .WithImage("redpandadata/redpanda:v24.2.4")
-            .WithPortBinding(RedpandaKafkaPort, true)
-            .WithCommand(
-                "redpanda", "start",
-                "--overprovisioned",
-                "--smp", "1",
-                "--memory", "512M",
-                "--reserve-memory", "0M",
-                "--node-id", "0",
-                "--check=false",
-                "--kafka-addr", "PLAINTEXT://0.0.0.0:9092",
-                "--advertise-kafka-addr", "PLAINTEXT://localhost:9092"
-            )
-            .WithWaitStrategy(Wait.ForUnixContainer()
-                .UntilMessageIsLogged("Started Kafka API server"))
             .Build();
 
         Garnet = new RedisBuilder()
@@ -61,19 +46,6 @@ public class InfrastructureFixture : IAsyncLifetime
             Redpanda.StartAsync(),
             Garnet.StartAsync()
         );
-
-        // Get the actual mapped port for Redpanda and reconfigure advertised listeners
-        var mappedPort = Redpanda.GetMappedPublicPort(RedpandaKafkaPort);
-        await Redpanda.ExecAsync(new[]
-        {
-            "rpk", "redpanda", "config", "set",
-            "--format", "json",
-            "redpanda.advertise_kafka_api",
-            $"[{{\"address\": \"{Redpanda.Hostname}\", \"port\": {mappedPort}}}]"
-        });
-
-        // Restart the Kafka API to apply the new advertised address
-        // Note: This is needed because we can't know the mapped port before starting
     }
 
     public async Task DisposeAsync()
