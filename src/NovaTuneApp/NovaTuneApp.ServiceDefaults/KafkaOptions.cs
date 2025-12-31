@@ -8,7 +8,7 @@ public class KafkaOptions
     /// <summary>
     /// Comma-separated list of broker addresses.
     /// </summary>
-    public string Brokers { get; set; } = "localhost:19092";
+    public string Brokers { get; set; } = "127.0.0.1:19092";
 
     /// <summary>
     /// Consumer group ID for this application.

@@ -28,7 +28,10 @@ builder.Services.AddHealthChecks()
 
 // Configure KafkaFlow for Redpanda messaging.
 var topicPrefix = builder.Configuration["Kafka:TopicPrefix"] ?? "dev";
-var bootstrapServers = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:19092";
+// Use Aspire's connection string if available, otherwise fall back to config
+var bootstrapServers = builder.Configuration.GetConnectionString("messaging")
+    ?? builder.Configuration["Kafka:BootstrapServers"]
+    ?? "localhost:9092";
 
 builder.Services.AddKafka(kafka => kafka
     .UseMicrosoftLog()
