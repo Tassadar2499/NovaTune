@@ -8,11 +8,21 @@
 ## Data & Storage
 - RavenDB (document database, sole data store)
 - MinIO (S3-compatible object storage for audio files)
-- NCache (distributed caching for presigned URLs, session state)
+- Garnet (Redis-compatible distributed cache from Microsoft)
+  - AOF persistence enabled for durability
+  - Used for presigned URL caching, session state
+  - StackExchange.Redis client
 
 ## Messaging
-- Apache Kafka (event streaming, analytics, audit logs)
-- RabbitMQ (background task queues, transient jobs)
+- Redpanda (Kafka-compatible event streaming platform)
+  - Replaces both Apache Kafka and RabbitMQ
+  - Topics: `{env}-audio-events`, `{env}-track-deletions`
+  - JSON message format with schema versioning
+  - SASL/SCRAM + TLS in stage/prod environments
+- KafkaFlow (.NET Kafka client framework)
+  - Typed message handlers with dependency injection
+  - Middleware pipeline for serialization/retry
+  - Admin dashboard for debugging
 
 ## Authentication
 - ASP.NET Identity (custom RavenDB IUserStore/IRoleStore implementation required)
