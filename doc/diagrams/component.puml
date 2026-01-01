@@ -13,19 +13,19 @@ Container_Boundary(api, "NovaTune.Api", "ASP.NET Core") {
     Component(signedUrlService, "SignedUrlService", "Application Service", "Generates/caches MinIO presigned URLs (Req 4.2, 5.2)")
     Component(metadataService, "TrackMetadataService", "Application Service", "Persists and queries track docs/indexes (Req 2.4, 6.1)")
     Component(eventPublisher, "EventPublisher", "Application Service", "Publishes audio-uploaded, analytics events (Req 2.6, 6.2, 9.x)")
-    Component(cacheClient, "CacheClient", "NCache Adapter", "Caches tokens, signed URLs, revocation flags (Req 4.2, 5.2, 10.5)")
+    Component(cacheClient, "CacheClient", "Garnet Adapter", "Caches tokens, signed URLs, revocation flags (Req 4.2, 5.2, 10.5)")
     Component(audioStorageClient, "AudioStorageClient", "MinIO Adapter", "Streams objects, manages lifecycle (Req 2.3, 4.1)")
 }
 
 Container_Boundary(workers, "Background Workers", ".NET Worker Services") {
-    Component(uploadConsumer, "UploadEventConsumer", "Worker", "Consumes Kafka/RabbitMQ events for waveform & analytics (Req 3.x, 9.x)")
+    Component(uploadConsumer, "UploadEventConsumer", "Worker", "Consumes RedPanda events for waveform & analytics (Req 3.x, 9.x)")
     Component(cleanupJob, "LifecycleCleanupJob", "Worker", "Purges orphaned objects & invalidates cache (Req 4.4, NF-6.1)")
 }
 
 SystemDb(raven, "RavenDB", "Document DB", "Track metadata, analytics, playlists")
 SystemDb(minio, "MinIO", "Object Storage", "Private audio buckets with versioning")
-System(queue, "Kafka / RabbitMQ", "Messaging Backbone", "Upload + telemetry topics")
-System(cache, "NCache", "Distributed Cache", "Token + signed URL cache")
+System(queue, "RedPanda", "Messaging Backbone", "Upload + telemetry topics")
+System(cache, "Garnet", "Distributed Cache", "Token + signed URL cache")
 System_Ext(k8s, "Kubernetes", "Cluster", "Hosts API pods & workers (NF-1.1, NF-2.1)")
 
 Rel(listener, authController, "Register/login (Req 1.1-1.2)")
@@ -47,7 +47,7 @@ Rel(signedUrlService, cacheClient, "Store/retrieve signed URLs (Req 4.2, 5.2)")
 Rel(metadataService, raven, "RavenDB session (Req 2.4, NF-6.2)")
 Rel(audioStorageClient, minio, "MinIO SDK (Req 4.1)")
 Rel(eventPublisher, queue, "Produce events (Req 2.6, 6.2, 9.1)")
-Rel(cacheClient, cache, "NCache cluster (Req 4.2, 5.2)")
+Rel(cacheClient, cache, "Garnet cluster (Req 4.2, 5.2)")
 
 Rel(uploadConsumer, queue, "Consume upload events (Req 3.3)")
 Rel(uploadConsumer, minio, "Fetch audio for waveform (Req 3.3)")

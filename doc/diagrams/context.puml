@@ -12,8 +12,8 @@ System_Boundary(system, "NovaTune Platform") {
 
 SystemDb(raven, "RavenDB", "Metadata store for track metadata and analytics data")
 SystemDb(minio, "MinIO", "Audio object storage for uploaded audio files")
-System(queue, "Kafka / RabbitMQ", "Messaging backbone enabling event-based communication")
-System(cache, "NCache", "Distributed cache for token and signed URL caching")
+System(queue, "RedPanda", "Messaging backbone enabling event-based communication")
+System(cache, "Garnet", "Distributed cache for token and signed URL caching")
 System_Ext(k8s, "Kubernetes", "Cluster orchestration that hosts the API and workers")
 System_Ext(ci, "GitHub Actions", "CI/CD pipeline that builds and deploys workloads")
 
