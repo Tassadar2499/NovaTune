@@ -10,7 +10,9 @@ var messaging = builder.AddKafka("messaging")
 
 var apiService = builder.AddProject<Projects.NovaTuneApp_ApiService>("apiservice")
     .WithReference(cache)
+    .WaitFor(cache)
     .WithReference(messaging)
+    .WaitFor(messaging)
     .WithHttpHealthCheck("/health");
 
 builder.AddProject<Projects.NovaTuneApp_Web>("webfrontend")
@@ -20,4 +22,7 @@ builder.AddProject<Projects.NovaTuneApp_Web>("webfrontend")
     .WithReference(cache)
     .WaitFor(apiService);
 
-builder.Build().Run();
+var app = builder.Build();
+await app.RunAsync();
+
+Console.WriteLine("App finished");

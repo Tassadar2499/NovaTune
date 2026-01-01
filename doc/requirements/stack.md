@@ -36,7 +36,6 @@
 
 ## Testing
 - xUnit
-- Testcontainers (integration tests with real MinIO/RavenDB/Kafka)
 
 ## Frontend
 - Vue.js

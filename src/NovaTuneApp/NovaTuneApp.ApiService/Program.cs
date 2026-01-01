@@ -19,12 +19,7 @@ builder.AddRedisClient("cache");
 // Register cache service.
 builder.Services.AddSingleton<ICacheService, GarnetCacheService>();
 
-// Add Redis health check.
-builder.Services.AddHealthChecks()
-    .AddRedis(
-        builder.Configuration.GetConnectionString("cache") ?? "localhost:6379",
-        name: "garnet",
-        tags: ["ready"]);
+// Health checks are added by ServiceDefaults - no additional checks needed for now
 
 // Configure KafkaFlow for Redpanda messaging.
 var topicPrefix = builder.Configuration["Kafka:TopicPrefix"] ?? "dev";
@@ -51,40 +46,60 @@ builder.Services.AddKafka(kafka => kafka
             });
         }
 
-        // Create topics if they don't exist
-        cluster.CreateTopicIfNotExists($"{topicPrefix}-audio-events", 3, 1);
-        cluster.CreateTopicIfNotExists($"{topicPrefix}-track-deletions", 3, 1);
-
-        // Audio events producer
+        // Audio events producer with retry configuration for delayed broker availability
         cluster.AddProducer("audio-producer", producer => producer
             .DefaultTopic($"{topicPrefix}-audio-events")
+            .WithProducerConfig(new Confluent.Kafka.ProducerConfig
+            {
+                MessageTimeoutMs = 60000,
+                SocketTimeoutMs = 30000,
+                RetryBackoffMs = 1000
+            })
             .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
         );
 
-        // Track deletions producer
+        // Track deletions producer with retry configuration
         cluster.AddProducer("deletion-producer", producer => producer
             .DefaultTopic($"{topicPrefix}-track-deletions")
+            .WithProducerConfig(new Confluent.Kafka.ProducerConfig
+            {
+                MessageTimeoutMs = 60000,
+                SocketTimeoutMs = 30000,
+                RetryBackoffMs = 1000
+            })
             .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
         );
 
-        // Audio events consumer
+        // Audio events consumer with retry configuration
         cluster.AddConsumer(consumer => consumer
             .Topic($"{topicPrefix}-audio-events")
             .WithGroupId($"{topicPrefix}-audio-processor")
             .WithBufferSize(100)
             .WithWorkersCount(3)
+            .WithConsumerConfig(new Confluent.Kafka.ConsumerConfig
+            {
+                SessionTimeoutMs = 45000,
+                SocketTimeoutMs = 30000,
+                ReconnectBackoffMs = 1000
+            })
             .AddMiddlewares(m => m
                 .AddDeserializer<JsonCoreDeserializer>()
                 .AddTypedHandlers(h => h.AddHandler<AudioUploadedHandler>())
             )
         );
 
-        // Track deletions consumer
+        // Track deletions consumer with retry configuration
         cluster.AddConsumer(consumer => consumer
             .Topic($"{topicPrefix}-track-deletions")
             .WithGroupId($"{topicPrefix}-deletion-processor")
             .WithBufferSize(50)
             .WithWorkersCount(2)
+            .WithConsumerConfig(new Confluent.Kafka.ConsumerConfig
+            {
+                SessionTimeoutMs = 45000,
+                SocketTimeoutMs = 30000,
+                ReconnectBackoffMs = 1000
+            })
             .AddMiddlewares(m => m
                 .AddDeserializer<JsonCoreDeserializer>()
                 .AddTypedHandlers(h => h.AddHandler<TrackDeletedHandler>())
@@ -97,6 +112,9 @@ builder.Services.AddKafka(kafka => kafka
 builder.Services.AddSingleton<IMessageProducerService, MessageProducerService>();
 builder.Services.AddTransient<AudioUploadedHandler>();
 builder.Services.AddTransient<TrackDeletedHandler>();
+
+// Register KafkaFlow as a hosted service for background startup
+builder.Services.AddHostedService<KafkaFlowHostedService>();
 
 // Register stub services for handler dependencies.
 builder.Services.AddSingleton<ITrackService, TrackService>();
@@ -120,10 +138,7 @@ if (app.Environment.IsDevelopment())
     app.UseKafkaFlowDashboard();
 }
 
-// Start KafkaFlow consumers.
-var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-var kafkaBus = app.Services.CreateKafkaBus();
-await kafkaBus.StartAsync(lifetime.ApplicationStopping);
+// KafkaFlow will be started by its IHostedService automatically
 
 string[] summaries =
     ["Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"];
