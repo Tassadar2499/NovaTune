@@ -1,0 +1,24 @@
+# NF-4.x — Observability and Diagnostics
+
+- **NF-4.1** The system shall emit structured logs for API requests and background jobs, including `CorrelationId` where applicable (Req 9.3).
+  - Correlation source/propagation:
+    - Use gateway-provided `X-Correlation-Id` when present; otherwise generate in the API.
+    - Accept `traceparent` for distributed tracing.
+    - Propagate a `CorrelationId` field in all emitted events and logs.
+- **NF-4.2** The system shall expose metrics for:
+  - Request rate, latency, error rate (API).
+  - Event consumption lag, processing success/failure counts, retry counts (workers).
+  - Cache hit ratio for presigned URLs and token/session cache.
+- **NF-4.3** The system shall provide traceability across API → event publication → worker processing using a propagated correlation identifier (Req 9.3), enabling per-track investigation.
+- **NF-4.4** The system shall publish MVP dashboards and alerts for core system health.
+  - Dashboards: API RPS/latency/error rate; worker lag/success/failure/retry/time-to-ready; cache hit ratio/latency/error rate.
+  - Alerting: SLO-based in `prod`; static thresholds in `staging` (e.g., 5xx > 2% for 5 min; lag > 10k messages).
+- **NF-4.5** Sensitive fields shall not be logged; logs must be redactable and safe for centralized aggregation.
+  - Never log: passwords, tokens, refresh tokens, presigned URLs, or raw object keys.
+  - Treat emails as PII; do not log them (use `UserId` instead).
+  - Treat track titles/artists as user content; do not log by default (allow opt-in debug in `dev` only).
+- **NF-4.6** The observability stack target is:
+  - OpenTelemetry for instrumentation.
+  - Prometheus + Grafana for metrics.
+  - Tempo (or Jaeger) for traces.
+  - Loki (or equivalent) for logs.

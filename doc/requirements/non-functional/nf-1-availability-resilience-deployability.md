@@ -1,0 +1,26 @@
+# NF-1.x — Availability, Resilience, and Deployability
+
+- **NF-1.1** The system shall be deployable to Kubernetes and support running the API and worker workloads as separate, independently scalable deployments.
+- **NF-1.2** The API and workers shall expose health endpoints suitable for Kubernetes liveness and readiness probes, distinguishing "alive" from "ready to serve traffic".
+  - API readiness requires RavenDB + Redpanda connectivity.
+  - MinIO connectivity is required for upload initiation and streaming URL issuance readiness.
+  - Garnet (cache) is optional for readiness; cache failures must degrade to non-cached behavior.
+  - Worker readiness requires Redpanda plus the dependencies required for that worker's role (e.g., processing workers require MinIO + RavenDB).
+- **NF-1.3** Deployments shall support rolling updates without requiring downtime for the API, and shall allow worker updates without breaking event consumption semantics (e.g., safe restarts).
+  - Single-region deployment is the default for MVP; multi-region deployment is out of scope until event schema evolution and DR strategy are mature.
+  - Planned maintenance windows are allowed for `staging` at any time; for `prod` only by exception with advance notice (prefer off-peak hours).
+- **NF-1.4** The system shall tolerate transient dependency failures (RavenDB/MinIO/Redpanda/Garnet) via bounded timeouts, retries, and isolation; failure behavior must prefer safe degradation over corrupting state.
+  - Timeouts and retry budgets (initial defaults):
+    - Garnet: 250–500ms timeout, 1 retry.
+    - RavenDB: 2–5s timeout, 1 retry for reads; writes retry only if idempotent (e.g., via optimistic concurrency).
+    - MinIO: 5–10s timeout for presign/metadata, 1 retry; do not retry large stream transfers in-process.
+    - Redpanda produce: 2–5s timeout, up to 2 retries; for "must publish" events prefer outbox (see NF-5.2).
+  - Bulkheads (bounded concurrency) per dependency shall be implemented to avoid cascading failure.
+  - Circuit breakers shall be implemented for repeated dependency failures.
+  - Fail closed: authentication, token refresh, upload initiation, streaming URL issuance, admin mutations.
+  - Fail open (best-effort): cache reads/writes, analytics dashboards, non-critical telemetry ingestion (with sampling/backpressure).
+- **NF-1.5** The system shall define and measure SLOs per environment based on server-side request outcomes for critical endpoints and worker "time-to-ready".
+  - API availability SLO (monthly): `dev` best-effort; `staging` 99.0%; `prod` 99.5% (initial target).
+  - Critical endpoint latency targets are defined in NF-2.2; additionally the overall critical-endpoint envelope target is: `staging` p95 750ms / p99 2000ms; `prod` p95 500ms / p99 1500ms.
+    - Note: Upload initiation has an explicit higher p95 budget (600ms) due to MinIO presign; this is an accepted exception tracked separately from the overall envelope.
+  - Worker time-to-ready target (from `AudioUploadedEvent` to `Track.Status=Ready`): `staging` p95 5 min / p99 30 min; `prod` p95 2 min / p99 15 min.

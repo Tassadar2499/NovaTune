@@ -1,0 +1,23 @@
+# NF-6.x — Data Management, Integrity, and Lifecycle
+
+- **NF-6.1** The system shall ensure deleted tracks do not remain accessible:
+  - Cached presigned URLs must be invalidated promptly on track deletion (Req 4.4).
+  - Storage objects must be deleted after the configured grace period (Req 4.4), and cleanup must be repeatable and safe to run multiple times.
+  - The system shall prevent new streaming URL issuance for tracks that are `Deleted` (or otherwise not permitted), even if cached URLs exist.
+  - Soft-delete immediately blocks streaming and presign issuance; user may restore within the grace window if the object still exists. After physical deletion, restore is not possible.
+- **NF-6.2** Persistence operations against RavenDB shall prevent lost updates and inconsistent state transitions:
+  - Track status transitions must be monotonic with respect to processing flow (e.g., `Ready` must not return to `Processing`).
+  - Concurrent updates (e.g., user edits vs worker updates) must use optimistic concurrency or equivalent safeguards.
+  - Merge policy: user edits win for title/artist; workers win for technical metadata.
+- **NF-6.3** Data retention policies shall be explicit and enforceable:
+  - Analytics retention is 30 days (Req 5.x clarification) unless configured otherwise.
+  - Deleted-track grace period is 30 days (Req 4.x clarification) unless configured otherwise.
+- **NF-6.4** Event schemas shall be versioned and backwards/forwards compatible to support phased deployments (Req 9.1).
+  - Allowed: additive optional fields, adding enum values with safe defaults.
+  - Forbidden: rename/remove fields, changing requiredness/meaning.
+  - `SchemaVersion` shall be incremented only on breaking changes; producers set `SchemaVersion`; consumers validate and either DLQ or ignore per configured policy.
+- **NF-6.5** Backups/restore and disaster recovery shall be supported for `staging`/`prod`.
+  - Initial `prod` targets: RPO 24h, RTO 4h (tighten later).
+  - RavenDB: nightly backups.
+  - MinIO: bucket versioning + lifecycle policies.
+  - Redpanda: retention sized to allow replay (e.g., 7 days).

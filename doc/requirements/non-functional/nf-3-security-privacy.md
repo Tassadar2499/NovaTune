@@ -1,0 +1,25 @@
+# NF-3.x — Security and Privacy
+
+- **NF-3.1** All external HTTP traffic shall be served over TLS (termination at ingress is acceptable); internal mTLS is recommended for `prod` when platform support exists (service mesh or mTLS-enabled ingress-to-pod).
+- **NF-3.2** Authentication tokens, refresh tokens, and any session artifacts shall be stored and transmitted securely:
+  - Refresh tokens must be stored hashed (per functional requirements).
+  - Cache entries that include full presigned URLs must be protected with application-layer encryption before writing to Garnet/Redis (Req 10.3).
+  - Encryption key management:
+    - `prod`: external KMS where available.
+    - `dev`/`staging`: Kubernetes secrets are acceptable when KMS is not available.
+    - Rotation: quarterly or on incident; support decrypt-with-previous-key during rotation.
+- **NF-3.3** Object storage access shall be strictly scoped:
+  - Presigned URLs shall be short-lived and user+track scoped (Req 4.3).
+  - Object keys must be guess-resistant and user-scoped (Req 2.3).
+  - Presigned URL TTL defaults (configurable):
+    - Upload presign: 15 minutes (`dev`/`staging`), 10 minutes (`prod`).
+    - Streaming presign: 2 minutes (`dev`/`staging`), 60–120 seconds (`prod`).
+    - Cache TTL should be slightly shorter than presign expiry to reduce issuance of near-expired URLs.
+- **NF-3.4** The system shall implement least-privilege service credentials for RavenDB/MinIO/Redpanda/Garnet and must not embed secrets in repository-tracked configuration files.
+  - Kubernetes secret management target:
+    - `prod`: External Secrets Operator (or equivalent) backed by a secret manager/KMS.
+    - `dev`/`staging`: sealed secrets acceptable if a secret manager is not available.
+- **NF-3.5** Admin operations shall be audited with actor identity, timestamp, action, target, and reason codes (Req 11.2).
+  - Audit logs shall be retained for 1 year and access restricted to Admin role.
+  - Right-to-delete workflows shall be supported with documented exceptions (e.g., security/audit retention) and explicit retention periods per data class.
+  - Audit records should be tamper-evident (mechanism TBD).

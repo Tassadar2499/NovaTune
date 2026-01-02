@@ -1,0 +1,26 @@
+# NF-2.x — Performance and Scalability
+
+- **NF-2.1** The system shall support horizontal scaling for:
+  - API request handling (stateless scaling behind an ingress/load balancer).
+  - Worker processing throughput (parallel consumers with bounded concurrency).
+  - Initial MVP scale envelope (targets): ~200 concurrent users; peak ~50 RPS (bursty); peak ~2 uploads/sec; average upload size 15–30MB; peak streaming URL issuance ~20 req/sec (bursty).
+  - Worker throughput target: sustained ~5 events/sec per consumer group; recover 1 hour of backlog within 4 hours.
+- **NF-2.2** API endpoints shall have explicit latency budgets per endpoint class and enforce timeouts on calls to external dependencies.
+  - Initial p95 / p99 budgets (excluding client upload/stream transfer):
+    - Auth (login/refresh): 400ms / 1200ms.
+    - Upload initiation: 600ms / 1500ms.
+    - Streaming URL issuance: 300ms / 1000ms.
+    - Track browsing/details: 700ms / 2000ms.
+    - Admin queries: 1000ms / 3000ms.
+- **NF-2.3** Streaming shall not proxy audio bytes through the API; the API shall only issue short-lived presigned URLs (per Req 5.x).
+- **NF-2.4** Upload and processing paths shall be designed to avoid unbounded memory usage (streaming IO; bounded buffers) and must tolerate large audio files within configured limits.
+  - Default hard limits (configurable):
+    - Max upload size: 200MB (`dev`/`staging`), 500MB (`prod`).
+    - Max track duration: 2 hours.
+    - Per-user quotas: 10GB storage, 5,000 tracks, 200 playlists, 10,000 tracks per playlist.
+- **NF-2.5** The system shall enforce rate limits as required by functional requirements (Req 8.2) and provide configuration knobs per environment.
+  - Default limits (configurable); on limit exceed return HTTP 429 with `Retry-After` where applicable:
+    - Login attempts: 10/min per IP and 5/min per account.
+    - Upload initiation: 20/hour per user (burst 5/min).
+    - Streaming URL issuance: 60/min per user and 10/min per track.
+    - Telemetry ingestion: 120/min per device; allow server-side sampling/backpressure.
