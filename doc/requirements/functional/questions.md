@@ -62,132 +62,61 @@ A: Unrecoverable processing error.
 4. **Waveform output**: where should waveform artifacts live (RavenDB document, MinIO sidecar object), and what format is desired?
 A: Waveform artifacts should live in MinIO sidecar object, and use WAV format.
 5. **Concurrency limits**: should processing be limited per user or globally (to protect MinIO/CPU)?
-A: Processing should be limited globally.% A simple, self-contained CV (no external .cls required).
-   \documentclass[10pt]{article}
-
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage[left=0.55in,top=0.55in,right=0.55in,bottom=0.55in]{geometry}
-\usepackage[hidelinks]{hyperref}
-\usepackage{tabularx}
-\usepackage{enumitem}
-\usepackage{xcolor}
-
-\setlength{\parindent}{0pt}
-\setlist[itemize]{leftmargin=*,nosep}
-\setlength{\tabcolsep}{0pt}
-
-\newcommand{\cvname}[1]{\textbf{\LARGE #1}\par}
-\newcommand{\cvline}[1]{#1\par}
-\newcommand{\cvsection}[1]{\vspace{0.85\baselineskip}\textbf{\large #1}\par\vspace{0.15\baselineskip}\hrule\vspace{0.5\baselineskip}}
-\newcommand{\cvrole}[3]{\textbf{#1}\hfill #2\par\textit{#3}\par}
-
-\begin{document}
-
-\cvname{Roman Markevich}
-\cvline{\textit{C\# / ASP.NET Core Developer \quad\textbar\quad 6+ years experience}}
-\cvline{Limassol, Cyprus}
-\cvline{Mobile: +44 7715 450685 \quad\textbar\quad Email: \href{mailto:markevich.roma@gmail.com}{markevich.roma@gmail.com}}
-
-\cvsection{Summary}
-C\# / ASP.NET Core developer with 6+ years of experience building scalable, high-performance web applications.
-Worked in remote and on-site teams (3--20 members), delivering software from concept to production across requirements, architecture, CI/CD, testing, and deployment.
-Domain experience includes reporting systems, telephony, document management, marketplaces, CRM platforms, and distributed printing solutions.
-
-\cvsection{Skills}
-\small
-\begin{itemize}
-\item \textbf{Languages:} C\#, Python, Bash, PowerShell
-\item \textbf{.NET:} .NET 7--9, ASP.NET Core, Entity Framework Core, Dapper, Blazor, SignalR, Hangfire
-\item \textbf{Testing:} xUnit, TestContainers, Verify, Fluent Assertions; functional/integration testing
-\item \textbf{Datastores:} MS SQL Server, PostgreSQL, MongoDB, ClickHouse, Redis
-\item \textbf{Messaging \& APIs:} Apache Kafka, RabbitMQ, MassTransit; HTTP/REST, gRPC/Protobuf, WebSockets, SNMP
-\item \textbf{Cloud:} AWS, Azure
-\item \textbf{Infra/Observability:} Kubernetes, Docker/Docker Compose, Nginx, Linux, Windows Server; ELK, Grafana, Prometheus, Graylog, Jaeger; GitLab CI, GitHub Actions; etcd, Vault
-\item \textbf{AI tools:} Claude Code, Codex CLI, Cursor
-\item \textbf{Architecture:} BPMN, UML, C4
-\end{itemize}
-\normalsize
-
-\cvsection{Experience}
-\cvline{\small Approximate tenure in years (as of Jan 2026).}
-\normalsize
-\cvrole{Gold Apple}{Sep 2023--Present (2.4 yrs)}{C\# / ASP.NET Core Developer --- Marketplace and online store}
-\begin{itemize}
-\item Implemented an Outbox pattern for MongoDB and Apache Kafka and integrated it into the open-source Kafka Flow library.
-\item Designed a unit testing approach eliminating mocks by relying on standard DI containers.
-\item Introduced a specification-driven development process using BDD principles and functional tests for business logic.
-\item Proposed and implemented batch message consumption in Kafka, reducing topic lag by 3--4$\times$.
-\item \textbf{Technologies:} C\#, .NET 9; ASP.NET Core; MongoDB; Elasticsearch, Logstash, Kibana; gRPC; Redis; in-memory cache
-\end{itemize}
-
-\cvrole{Katusha IT}{Feb 2022--Sep 2023 (1.7 yrs)}{C\# / ASP.NET Core Developer --- Distributed printing systems}
-\begin{itemize}
-\item Designed and supported migration from a legacy system to a microservices architecture deployed on Kubernetes, focusing on fault tolerance and scalability.
-\item Built CI/CD pipelines from scratch with Bash and PowerShell for automated builds and deployments.
-\item Produced architectural diagrams and collaborated with the lead architect on system design decisions.
-\item \textbf{Technologies:} C\#, .NET 8; ASP.NET Core; Entity Framework Core; PostgreSQL; ClickHouse; RabbitMQ; MassTransit; Kubernetes
-\end{itemize}
-
-\cvrole{Ozon Tech}{Feb 2019--Feb 2022 (3.1 yrs)}{C\# / ASP.NET Core Developer --- Marketplace and online store}
-\begin{itemize}
-\item Improved load testing by building tools for dynamic test-data generation.
-\item Built a custom integration testing framework using PostgreSQL in Docker.
-\item Decomposed a monolith into microservices using the Strangler Pattern for smooth migration.
-\item Implemented a Kafka consumer redirection mechanism for version-specific testing in staging environments.
-\item Designed a PostgreSQL sharding migration plan optimizing hot/cold storage.
-\item Implemented Transactional Outbox messaging for Kafka topics.
-\item Proposed and delivered a microservice split, improving read response time by 2.5$\times$ through enhanced scalability.
-\item \textbf{Technologies:} C\#, .NET 7; ASP.NET Core; Entity Framework Core; PostgreSQL; Apache Kafka; gRPC; etcd; Vault
-\end{itemize}
-
-\cvrole{Directum RX}{Jan 2018--Jan 2019 (1.1 yrs)}{C\# Developer --- Electronic document management system}
-
-\cvsection{Education}
-\cvrole{Novosibirsk State University}{2017--2024}{Math and Computer Science / Software Engineering}
-\begin{itemize}
-\item Bachelor's Degree --- Math and Computer Science (2017--2021)
-\item Master's Degree --- Software Engineering (2022--2024)
-\end{itemize}
-
-\cvsection{Personal}
-In free time, I develop pet projects and contribute to open-source. Recent work: implemented an Outbox pattern for MongoDB in the Kafka Flow library.
-
-\end{document}
-
+A: Processing should be limited globally.
 
 ## Storage, Presigned URLs, Lifecycle (Req 4.x / Req 10.x)
 
 1. **TTL values (Req 4.2/Req 10.3)**: expected TTLs for presigned upload URLs, presigned streaming URLs, refresh tokens, and revocation flags.
+A: Expected TTLs for presigned upload URLs,
 2. **Cache keying (Req 10.2)**: is user+track sufficient, or do we need to include MIME/variant/bitrate/format version in the key?
+A: User+track sufficient.
 3. **Security for cached URLs**: is it acceptable to cache full presigned URLs in Garnet, or should they be encrypted at rest / avoided in favor of caching inputs and regenerating?
+A: Encrypted at rest.
 4. **Invalidation triggers (Req 4.4/Req 10.2)**: besides track deletion, should cached URLs be invalidated on logout, password change, user disable, and permission changes?
+A: Cached URLs should be invalidated on logout,
 5. **Deletion grace period (Req 4.4)**: how long is the grace period, and can a user undo/restore a deletion during that window?
+A: 30 days, can a user undo/restore a deletion during that window.
 
 ## Streaming & Telemetry (Req 5.x)
 
 1. **Streaming path**: is streaming always direct-from-MinIO via presigned GET, or will the API ever proxy streaming (e.g., for DRM, watermarking, analytics)?
+A: Streaming always direct-from-MinIO via presigned GET.
 2. **Range requests (Req 5.3)**: any specific client compatibility requirements (iOS/Android/web) that imply constraints on MinIO configuration or headers?
+A: No specific client compatibility requirements.
 3. **Telemetry capture (Req 5.4)**: since the backend may not see streamed bytes, what is the desired telemetry mechanism (client-reported events vs storage access logs), and what is the minimum schema?
+A: Client-reported events.
 4. **Privacy/retention**: analytics retention period and any privacy constraints (e.g., opt-out, deletion on account removal).
+A: Analytics retention period 30 days.
 
 ## Track Management (Req 6.x)
 
 1. **Sorting/filtering**: required sort orders (recent, title, artist) and filter semantics (case-insensitive search, partial matches, status filters).
+A: Required sort orders (recent, title, artist) and filter semantics (case-insensitive search, partial matches, status filters).
 2. **Editable fields (Req 6.2)**: confirm allowed updates (Title/Artist only?), and whether editing is allowed while `Status=Processing`.
+A: Confirm allowed updates (Title/Artist only?).
 3. **Deletion model (Req 6.3/Req 4.4)**: is deletion soft-delete (status change) vs hard-delete of the RavenDB record, and should deletes be idempotent?
+A: Soft-delete (status change).
 4. **Track sharing**: is there any notion of sharing tracks across users, or strictly per-user ownership only?
+A: No notion of sharing tracks across users, strictly per-user ownership only.
 
 ## Playlists (Req 7.x)
 
 1. **Playlist constraints**: max playlists per user, max tracks per playlist, duplicate tracks allowed or not.
+A: Max playlists per user, max tracks per playlist, duplicate tracks allowed.
 2. **Ordering semantics**: do we require stable ordering with explicit positions, and how should concurrent edits be handled?
+A: Require stable ordering with explicit positions.
 3. **Future sharing**: should the model anticipate playlist sharing/collaboration, or keep it strictly private for now?
+A: Model should anticipate playlist sharing/collaboration.
 
 ## Analytics, Events, Admin (Req 9.x / Req 11.x)
 
 1. **Event format**: JSON vs Avro/Protobuf, and is there a schema registry/versioning system expected beyond a `SchemaVersion` field?
+A: JSON.
 2. **Topic partitioning/keying**: what key should be used for partitioning (TrackId, UserId), and what ordering guarantees are required?
+A: TrackId.
 3. **CorrelationId propagation (Req 9.3)**: where does `CorrelationId` originate (API gateway, client, backend), and should it be required on inbound requests?
+A: API gateway.
 4. **Admin auditing**: do admin actions (disable user, delete track) require audit logs and/or reason codes?
+A: Require audit logs and reason codes.
 5. **Moderation semantics**: difference between “delete”, “moderate”, and “disable”, and how should these affect streaming URL issuance and processing workers?
+A: “Delete” removes the track from all playlists and prevents further streaming, “moderate” marks the track for review, “disable” prevents streaming but keeps the track accessible for review.
