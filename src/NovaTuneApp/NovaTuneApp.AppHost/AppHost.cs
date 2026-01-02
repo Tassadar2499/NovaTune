@@ -15,8 +15,8 @@ var ravenServer = builder.AddRavenDB("ravendb")
 var database = ravenServer.AddDatabase("novatune");
 
 // Storage (MinIO - S3-compatible object storage)
-var minioUser = builder.AddParameter("minio-user", secret: true);
-var minioPassword = builder.AddParameter("minio-password", secret: true);
+var minioUser = builder.AddParameter("minio-user");
+var minioPassword = builder.AddParameter("minio-password");
 
 var storage = builder.AddContainer("storage", "minio/minio")
     .WithVolume("minio-data", "/data")
@@ -25,7 +25,7 @@ var storage = builder.AddContainer("storage", "minio/minio")
     .WithEnvironment("MINIO_ROOT_USER", minioUser)
     .WithEnvironment("MINIO_ROOT_PASSWORD", minioPassword)
     .WithArgs("server", "/data", "--console-address", ":9001")
-    .WithHttpHealthCheck("/minio/health/live");
+    .WithHttpHealthCheck("/minio/health/live", endpointName: "api");
 
 // MinIO bucket initialization
 builder.AddContainer("storage-init", "minio/mc")
