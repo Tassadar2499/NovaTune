@@ -11,6 +11,7 @@ using NovaTuneApp.ApiService.Infrastructure.Messaging.Messages;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
 using NovaTuneApp.ApiService.Services;
 using Raven.Client.Documents;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -184,9 +185,24 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
+// ============================================================================
+// OpenAPI & Documentation
+// ============================================================================
+// OpenAPI spec is available in all environments at /openapi/v1.json
+// Scalar UI is available in all environments at /scalar/v1
+// Production environments should add authentication middleware if needed
+// ============================================================================
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
+{
+    options
+        .WithTitle("NovaTune API")
+        .WithTheme(ScalarTheme.Purple)
+        .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+});
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     // Optional: KafkaFlow dashboard for debugging
     app.UseKafkaFlowDashboard();
     // Debug config endpoint for development only (NF-5.1)
