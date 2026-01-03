@@ -62,6 +62,10 @@ public static class Extensions
         return builder;
     }
 
+    // Custom activity source and meter names for NovaTune observability (NF-4.x)
+    public const string NovaTuneActivitySourceName = "NovaTune.Api";
+    public const string NovaTuneMeterName = "NovaTune.Api";
+
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
@@ -76,14 +80,19 @@ public static class Extensions
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    // Register custom NovaTune metrics (NF-4.4)
+                    .AddMeter(NovaTuneMeterName);
             })
             .WithTracing(tracing =>
             {
-                tracing.AddSource(builder.Environment.ApplicationName)
-                    .AddAspNetCoreInstrumentation(tracing =>
+                tracing
+                    // Register custom NovaTune activity source (NF-4.3)
+                    .AddSource(NovaTuneActivitySourceName)
+                    .AddSource(builder.Environment.ApplicationName)
+                    .AddAspNetCoreInstrumentation(options =>
                         // Exclude health check requests from tracing
-                        tracing.Filter = context =>
+                        options.Filter = context =>
                             !context.Request.Path.StartsWithSegments(LivenessEndpointPath)
                             && !context.Request.Path.StartsWithSegments(ReadinessEndpointPath)
                     )

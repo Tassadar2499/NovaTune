@@ -5,18 +5,61 @@ using KafkaFlow.Configuration;
 using KafkaFlow.Serializer;
 using Microsoft.Extensions.Hosting;
 using NovaTuneApp.ApiService.Infrastructure.Caching;
+using NovaTuneApp.ApiService.Infrastructure.Configuration;
+using NovaTuneApp.ApiService.Infrastructure.Logging;
 using NovaTuneApp.ApiService.Infrastructure.Messaging;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Handlers;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Messages;
-using NovaTuneApp.ApiService.Infrastructure.Configuration;
+using NovaTuneApp.ApiService.Infrastructure.Middleware;
 using NovaTuneApp.ApiService.Services;
 using Raven.Client.Documents;
 using Scalar.AspNetCore;
+using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Compact;
 
-var builder = WebApplication.CreateBuilder(args);
+// ============================================================================
+// Serilog Bootstrap (NF-4.1)
+// ============================================================================
+// Configure Serilog early for startup logging before host is built.
+// Full configuration is applied after builder is created.
+// ============================================================================
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(new RenderedCompactJsonFormatter())
+    .CreateBootstrapLogger();
+
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
+
+// ============================================================================
+// Serilog Full Configuration (NF-4.1)
+// ============================================================================
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("KafkaFlow", LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .Enrich.WithEnvironmentName()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .Enrich.With<SensitiveDataMaskingEnricher>()
+    .Destructure.With<RedactedDestructuringPolicy>()
+    .WriteTo.Console(new RenderedCompactJsonFormatter()));
+
+// Add HttpContextAccessor for correlation ID propagation
+builder.Services.AddHttpContextAccessor();
+
+// Register CorrelationIdDelegatingHandler for outgoing HTTP calls (NF-4.2)
+builder.Services.AddTransient<CorrelationIdDelegatingHandler>();
 
 // Add Redis/Garnet client via Aspire.
 builder.AddRedisClient("cache");
@@ -138,6 +181,7 @@ builder.Services.AddKafka(kafka => kafka
             })
             .AddMiddlewares(m => m
                 .AddDeserializer<JsonCoreDeserializer>()
+                .Add<TracingMiddleware>() // OpenTelemetry tracing (NF-4.6)
                 .AddTypedHandlers(h => h.AddHandler<AudioUploadedHandler>())
             )
         );
@@ -156,6 +200,7 @@ builder.Services.AddKafka(kafka => kafka
             })
             .AddMiddlewares(m => m
                 .AddDeserializer<JsonCoreDeserializer>()
+                .Add<TracingMiddleware>() // OpenTelemetry tracing (NF-4.6)
                 .AddTypedHandlers(h => h.AddHandler<TrackDeletedHandler>())
             )
         );
@@ -166,6 +211,7 @@ builder.Services.AddKafka(kafka => kafka
 builder.Services.AddSingleton<IMessageProducerService, MessageProducerService>();
 builder.Services.AddTransient<AudioUploadedHandler>();
 builder.Services.AddTransient<TrackDeletedHandler>();
+builder.Services.AddTransient<TracingMiddleware>(); // OpenTelemetry tracing middleware (NF-4.6)
 
 // Register KafkaFlow as a hosted service for background startup
 builder.Services.AddHostedService<KafkaFlowHostedService>();
@@ -184,6 +230,21 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
+
+// Add correlation ID middleware early in pipeline (NF-4.2)
+app.UseCorrelationId();
+
+// Add Serilog request logging (NF-4.1)
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        if (httpContext.Items[CorrelationIdMiddleware.ItemsKey] is string correlationId)
+        {
+            diagnosticContext.Set("CorrelationId", correlationId);
+        }
+    };
+});
 
 // ============================================================================
 // OpenAPI & Documentation
@@ -233,6 +294,15 @@ app.MapGet("/weatherforecast", () =>
 app.MapDefaultEndpoints();
 
 app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
