@@ -8,6 +8,7 @@ using NovaTuneApp.ApiService.Infrastructure.Caching;
 using NovaTuneApp.ApiService.Infrastructure.Messaging;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Handlers;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Messages;
+using NovaTuneApp.ApiService.Infrastructure.Configuration;
 using NovaTuneApp.ApiService.Services;
 using Raven.Client.Documents;
 
@@ -21,6 +22,16 @@ builder.AddRedisClient("cache");
 
 // Register cache service.
 builder.Services.AddSingleton<ICacheService, GarnetCacheService>();
+
+// ============================================================================
+// Configuration Validation (NF-5.1)
+// ============================================================================
+// Validates required configuration at startup; fails fast on misconfiguration.
+// Settings validated: TopicPrefix, PresignedUrl TTL, Cache encryption, Rate limits, Quotas
+// ============================================================================
+builder.Services.Configure<NovaTuneOptions>(
+    builder.Configuration.GetSection(NovaTuneOptions.SectionName));
+builder.Services.AddHostedService<ConfigurationValidationService>();
 
 // ============================================================================
 // Health Checks Configuration (NF-1.2)
@@ -178,6 +189,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     // Optional: KafkaFlow dashboard for debugging
     app.UseKafkaFlowDashboard();
+    // Debug config endpoint for development only (NF-5.1)
+    app.MapDebugConfigEndpoint();
 }
 
 // KafkaFlow will be started by its IHostedService automatically
