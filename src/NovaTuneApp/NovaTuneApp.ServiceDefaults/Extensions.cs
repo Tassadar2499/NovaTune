@@ -16,8 +16,25 @@ namespace Microsoft.Extensions.Hosting;
 // To learn more about using this project, see https://aka.ms/dotnet/aspire/service-defaults
 public static class Extensions
 {
-    private const string HealthEndpointPath = "/health";
-    private const string AlivenessEndpointPath = "/alive";
+    private const string LivenessEndpointPath = "/health";
+    private const string ReadinessEndpointPath = "/ready";
+
+    /// <summary>
+    /// Tag for health checks that must pass for the app to be considered alive (liveness probe).
+    /// </summary>
+    public const string LiveTag = "live";
+
+    /// <summary>
+    /// Tag for health checks that must pass for the app to accept traffic (readiness probe).
+    /// Required dependencies that must be healthy.
+    /// </summary>
+    public const string ReadyTag = "ready";
+
+    /// <summary>
+    /// Tag for optional dependencies that can degrade gracefully.
+    /// App remains ready even if these fail.
+    /// </summary>
+    public const string OptionalTag = "optional";
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
@@ -67,8 +84,8 @@ public static class Extensions
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>
-                            !context.Request.Path.StartsWithSegments(HealthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath)
+                            !context.Request.Path.StartsWithSegments(LivenessEndpointPath)
+                            && !context.Request.Path.StartsWithSegments(ReadinessEndpointPath)
                     )
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()
@@ -105,26 +122,27 @@ public static class Extensions
     {
         builder.Services.AddHealthChecks()
             // Add a default liveness check to ensure app is responsive
-            .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+            .AddCheck("self", () => HealthCheckResult.Healthy(), [LiveTag]);
 
         return builder;
     }
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
+        // Liveness probe: Only checks tagged with "live" must pass.
+        // Used by Kubernetes to determine if the container should be restarted.
+        app.MapHealthChecks(LivenessEndpointPath, new HealthCheckOptions
         {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath);
+            Predicate = r => r.Tags.Contains(LiveTag)
+        });
 
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live")
-            });
-        }
+        // Readiness probe: Checks tagged with "ready" must pass.
+        // Optional checks (tagged "optional") are excluded - they can fail without affecting readiness.
+        // Used by Kubernetes to determine if the container should receive traffic.
+        app.MapHealthChecks(ReadinessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains(ReadyTag) && !r.Tags.Contains(OptionalTag)
+        });
 
         return app;
     }

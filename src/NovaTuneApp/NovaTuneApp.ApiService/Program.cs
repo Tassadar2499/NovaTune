@@ -1,12 +1,15 @@
+using Confluent.Kafka;
 using KafkaFlow;
 using KafkaFlow.Admin.Dashboard;
 using KafkaFlow.Configuration;
 using KafkaFlow.Serializer;
+using Microsoft.Extensions.Hosting;
 using NovaTuneApp.ApiService.Infrastructure.Caching;
 using NovaTuneApp.ApiService.Infrastructure.Messaging;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Handlers;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Messages;
 using NovaTuneApp.ApiService.Services;
+using Raven.Client.Documents;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +22,46 @@ builder.AddRedisClient("cache");
 // Register cache service.
 builder.Services.AddSingleton<ICacheService, GarnetCacheService>();
 
-// Health checks are added by ServiceDefaults - no additional checks needed for now
+// ============================================================================
+// Health Checks Configuration (NF-1.2)
+// ============================================================================
+// Required dependencies: RavenDB, Redpanda/Kafka, MinIO
+// Optional (degraded): Garnet/Redis cache
+// ============================================================================
+
+var kafkaBootstrap = builder.Configuration.GetConnectionString("messaging")
+    ?? builder.Configuration["Kafka:BootstrapServers"]
+    ?? "localhost:9092";
+
+var ravenDbUrl = builder.Configuration.GetConnectionString("novatune")
+    ?? builder.Configuration["RavenDb:Url"]
+    ?? "http://localhost:8080";
+
+var minioEndpoint = builder.Configuration.GetConnectionString("storage")
+    ?? builder.Configuration["MinIO:Endpoint"]
+    ?? "http://localhost:9000";
+
+builder.Services.AddHealthChecks()
+    // RavenDB - Required for readiness
+    .AddRavenDB(
+        setup => setup.Urls = [ravenDbUrl],
+        name: "ravendb",
+        tags: [Extensions.ReadyTag])
+    // Kafka/Redpanda - Required for readiness
+    .AddKafka(
+        new ProducerConfig { BootstrapServers = kafkaBootstrap },
+        name: "kafka",
+        tags: [Extensions.ReadyTag])
+    // MinIO/S3 - Required for readiness (custom URI check)
+    .AddUrlGroup(
+        new Uri($"{minioEndpoint}/minio/health/live"),
+        name: "minio",
+        tags: [Extensions.ReadyTag])
+    // Redis/Garnet - Optional, app degrades gracefully if unavailable
+    .AddRedis(
+        builder.Configuration.GetConnectionString("cache") ?? "localhost:6379",
+        name: "redis",
+        tags: [Extensions.ReadyTag, Extensions.OptionalTag]);
 
 // Configure KafkaFlow for Redpanda messaging.
 var topicPrefix = builder.Configuration["Kafka:TopicPrefix"] ?? "dev";
@@ -39,8 +81,8 @@ builder.Services.AddKafka(kafka => kafka
         {
             cluster.WithSecurityInformation(security =>
             {
-                security.SecurityProtocol = SecurityProtocol.SaslSsl;
-                security.SaslMechanism = SaslMechanism.ScramSha256;
+                security.SecurityProtocol = KafkaFlow.Configuration.SecurityProtocol.SaslSsl;
+                security.SaslMechanism = KafkaFlow.Configuration.SaslMechanism.ScramSha256;
                 security.SaslUsername = builder.Configuration["Kafka:SaslUsername"];
                 security.SaslPassword = builder.Configuration["Kafka:SaslPassword"];
             });

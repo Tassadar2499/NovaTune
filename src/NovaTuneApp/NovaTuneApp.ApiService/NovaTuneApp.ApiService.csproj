@@ -26,6 +26,12 @@
 
         <!-- Health Checks -->
         <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="8.0.1"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Kafka" Version="8.0.1"/>
+        <PackageReference Include="AspNetCore.HealthChecks.RavenDb" Version="8.0.1"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Uris" Version="8.0.1"/>
+
+        <!-- RavenDB Client -->
+        <PackageReference Include="RavenDB.Client" Version="6.2.4"/>
     </ItemGroup>
 
 </Project>
