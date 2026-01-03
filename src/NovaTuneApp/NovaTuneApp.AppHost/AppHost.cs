@@ -9,6 +9,12 @@ var cache = builder.AddRedis("cache")
 var messaging = builder.AddKafka("messaging")
     .WithDataVolume("redpanda-data");
 
+// Redpanda Console - Admin UI for Kafka/Redpanda management
+builder.AddContainer("redpanda-console", "redpandadata/console", "v2.8.0")
+    .WithHttpEndpoint(port: 8085, targetPort: 8080, name: "console")
+    .WithEnvironment("KAFKA_BROKERS", "messaging:9092")
+    .WaitFor(messaging);
+
 // Database (RavenDB - system of record)
 var ravenServer = builder.AddRavenDB("ravendb")
     .WithDataVolume("ravendb-data");
