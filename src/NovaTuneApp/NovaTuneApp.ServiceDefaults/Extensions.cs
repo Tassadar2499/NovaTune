@@ -53,6 +53,10 @@ public static class Extensions
             http.AddServiceDiscovery();
         });
 
+        // Add resilience pipelines for dependency classes (NF-1.4)
+        // Pipelines: cache (500ms), database (5s), storage (10s)
+        builder.AddResiliencePipelines();
+
         // Uncomment the following to restrict the allowed schemes for service discovery.
         // builder.Services.Configure<ServiceDiscoveryOptions>(options =>
         // {
