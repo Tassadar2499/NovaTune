@@ -118,6 +118,37 @@ public static class NovaTuneMetrics
         description: "Message processing duration in milliseconds");
 
     // ============================================================================
+    // Authentication Metrics
+    // ============================================================================
+
+    /// <summary>
+    /// Counter for authentication operations.
+    /// Tags: operation (register, login, refresh, logout), result (success, failure, etc.)
+    /// </summary>
+    public static readonly Counter<long> AuthOperations = Meter.CreateCounter<long>(
+        name: "novatune.auth.operations",
+        unit: "{operations}",
+        description: "Number of authentication operations");
+
+    /// <summary>
+    /// Histogram for authentication operation duration.
+    /// Tags: operation (register, login, refresh, logout)
+    /// </summary>
+    public static readonly Histogram<double> AuthDuration = Meter.CreateHistogram<double>(
+        name: "novatune.auth.duration",
+        unit: "ms",
+        description: "Authentication operation duration in milliseconds");
+
+    /// <summary>
+    /// Counter for rate limit violations.
+    /// Tags: endpoint, policy
+    /// </summary>
+    public static readonly Counter<long> RateLimitViolations = Meter.CreateCounter<long>(
+        name: "novatune.ratelimit.violations",
+        unit: "{violations}",
+        description: "Number of rate limit violations");
+
+    // ============================================================================
     // Helper Methods
     // ============================================================================
 
@@ -152,5 +183,40 @@ public static class NovaTuneMetrics
         {
             CacheMisses.Add(1, tags);
         }
+    }
+
+    /// <summary>
+    /// Records an authentication operation.
+    /// </summary>
+    public static void IncrementAuthOperation(string operation, string result)
+    {
+        var tags = new TagList
+        {
+            { "operation", operation },
+            { "result", result }
+        };
+        AuthOperations.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records authentication operation duration.
+    /// </summary>
+    public static void RecordAuthDuration(string operation, double durationMs)
+    {
+        var tags = new TagList { { "operation", operation } };
+        AuthDuration.Record(durationMs, tags);
+    }
+
+    /// <summary>
+    /// Records a rate limit violation.
+    /// </summary>
+    public static void RecordRateLimitViolation(string endpoint, string policy)
+    {
+        var tags = new TagList
+        {
+            { "endpoint", endpoint },
+            { "policy", policy }
+        };
+        RateLimitViolations.Add(1, tags);
     }
 }
