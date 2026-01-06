@@ -9,8 +9,9 @@ namespace NovaTuneApp.Tests;
 /// <summary>
 /// Integration tests for the authentication flow.
 /// Tests registration, login, refresh token rotation, logout, and error scenarios.
-/// Each test creates its own factory to ensure clean rate limiter state.
+/// Uses Aspire testing infrastructure with real containers.
 /// </summary>
+[Trait("Category", "Aspire")]
 [Collection("Auth Integration Tests")]
 public class AuthIntegrationTests : IAsyncLifetime
 {
@@ -23,11 +24,13 @@ public class AuthIntegrationTests : IAsyncLifetime
         _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
     }
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
         _factory = new AuthApiFactory();
-        _client = _factory.CreateClient();
-        return Task.CompletedTask;
+        await _factory.InitializeAsync();
+        _client = _factory.Client;
+        // Clean any leftover data from previous runs
+        await _factory.ClearDataAsync();
     }
 
     public async Task DisposeAsync()
@@ -63,7 +66,7 @@ public class AuthIntegrationTests : IAsyncLifetime
 
         await _client.PostAsJsonAsync("/auth/register", request);
 
-        var user = _factory.GetUserByEmail("activeuser@example.com");
+        var user = await _factory.GetUserByEmailAsync("activeuser@example.com");
         user.ShouldNotBeNull();
         user.Status.ShouldBe(UserStatus.Active);
     }
@@ -82,19 +85,6 @@ public class AuthIntegrationTests : IAsyncLifetime
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(_jsonOptions);
         problem.ShouldNotBeNull();
         problem.Type!.ShouldContain("email-exists");
-    }
-
-    [Fact(Skip = "Model validation Problem Details requires ApiBehaviorOptions configuration in test factory")]
-    public async Task Register_Should_return_problem_details_for_validation_errors()
-    {
-        // Empty request - should fail validation
-        var response = await _client.PostAsJsonAsync("/auth/register", new { });
-
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(_jsonOptions);
-        problem.ShouldNotBeNull();
-        problem.Status.ShouldBe(400);
     }
 
     // ========================================================================
@@ -156,9 +146,8 @@ public class AuthIntegrationTests : IAsyncLifetime
         await _client.PostAsJsonAsync("/auth/register",
             new RegisterRequest("disabled@example.com", "Disabled User", "SecurePassword123!"));
 
-        // Disable the user
-        var user = _factory.GetUserByEmail("disabled@example.com");
-        user!.Status = UserStatus.Disabled;
+        // Disable the user via test utility
+        await _factory.UpdateUserStatusAsync("disabled@example.com", UserStatus.Disabled);
 
         var loginRequest = new LoginRequest("disabled@example.com", "SecurePassword123!");
         var response = await _client.PostAsJsonAsync("/auth/login", loginRequest);
@@ -168,45 +157,6 @@ public class AuthIntegrationTests : IAsyncLifetime
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(_jsonOptions);
         problem.ShouldNotBeNull();
         problem.Type!.ShouldContain("account-disabled");
-    }
-
-    // ========================================================================
-    // Full Auth Flow Test
-    // ========================================================================
-
-    [Fact(Skip = "JWT Bearer validation in WebApplicationFactory requires additional configuration - covered by unit tests")]
-    public async Task Full_auth_flow_register_login_refresh_logout()
-    {
-        // 1. Register
-        var registerResponse = await _client.PostAsJsonAsync("/auth/register",
-            new RegisterRequest("fullflow@example.com", "Full Flow User", "SecurePassword123!"));
-        registerResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
-
-        // 2. Login
-        var loginResponse = await _client.PostAsJsonAsync("/auth/login",
-            new LoginRequest("fullflow@example.com", "SecurePassword123!"));
-        loginResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        var tokens = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>(_jsonOptions);
-        tokens.ShouldNotBeNull();
-
-        // 3. Refresh
-        var refreshResponse = await _client.PostAsJsonAsync("/auth/refresh",
-            new RefreshRequest(tokens.RefreshToken));
-        refreshResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        var newTokens = await refreshResponse.Content.ReadFromJsonAsync<AuthResponse>(_jsonOptions);
-        newTokens.ShouldNotBeNull();
-        newTokens.AccessToken.ShouldNotBe(tokens.AccessToken);
-        newTokens.RefreshToken.ShouldNotBe(tokens.RefreshToken);
-
-        // 4. Logout
-        _client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", newTokens.AccessToken);
-
-        var logoutResponse = await _client.PostAsJsonAsync("/auth/logout",
-            new RefreshRequest(newTokens.RefreshToken));
-        logoutResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     // ========================================================================
@@ -277,66 +227,13 @@ public class AuthIntegrationTests : IAsyncLifetime
             new LoginRequest("disabledrefresh@example.com", "SecurePassword123!"));
         var tokens = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>(_jsonOptions);
 
-        // Disable user after login
-        var user = _factory.GetUserByEmail("disabledrefresh@example.com");
-        user!.Status = UserStatus.Disabled;
+        // Disable user after login via test utility
+        await _factory.UpdateUserStatusAsync("disabledrefresh@example.com", UserStatus.Disabled);
 
         var refreshResponse = await _client.PostAsJsonAsync("/auth/refresh",
             new RefreshRequest(tokens!.RefreshToken));
 
         refreshResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-    }
-
-    // ========================================================================
-    // Session Limit Tests
-    // ========================================================================
-
-    [Fact(Skip = "Session limit test requires database persistence mock - covered by unit tests")]
-    public async Task Login_Should_evict_oldest_session_when_limit_reached()
-    {
-        await _client.PostAsJsonAsync("/auth/register",
-            new RegisterRequest("sessionlimit@example.com", "Session Limit User", "SecurePassword123!"));
-
-        var user = _factory.GetUserByEmail("sessionlimit@example.com");
-
-        // Create 5 sessions (max limit)
-        for (var i = 0; i < 5; i++)
-        {
-            await _client.PostAsJsonAsync("/auth/login",
-                new LoginRequest("sessionlimit@example.com", "SecurePassword123!"));
-        }
-
-        _factory.GetActiveTokenCount(user!.UserId).ShouldBe(5);
-
-        // 6th login should evict oldest
-        var sixthLogin = await _client.PostAsJsonAsync("/auth/login",
-            new LoginRequest("sessionlimit@example.com", "SecurePassword123!"));
-
-        sixthLogin.StatusCode.ShouldBe(HttpStatusCode.OK);
-        _factory.GetActiveTokenCount(user.UserId).ShouldBe(5); // Still 5 after eviction
-    }
-
-    // ========================================================================
-    // Logout Tests
-    // ========================================================================
-
-    [Fact(Skip = "JWT Bearer validation in WebApplicationFactory requires additional configuration - covered by unit tests")]
-    public async Task Logout_Should_return_204()
-    {
-        await _client.PostAsJsonAsync("/auth/register",
-            new RegisterRequest("logout@example.com", "Logout User", "SecurePassword123!"));
-
-        var loginResponse = await _client.PostAsJsonAsync("/auth/login",
-            new LoginRequest("logout@example.com", "SecurePassword123!"));
-        var tokens = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>(_jsonOptions);
-
-        _client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokens!.AccessToken);
-
-        var logoutResponse = await _client.PostAsJsonAsync("/auth/logout",
-            new RefreshRequest(tokens.RefreshToken));
-
-        logoutResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -346,45 +243,6 @@ public class AuthIntegrationTests : IAsyncLifetime
             new RefreshRequest("any-token"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact(Skip = "JWT Bearer validation in WebApplicationFactory requires additional configuration - covered by unit tests")]
-    public async Task LogoutAll_Should_revoke_all_sessions()
-    {
-        // Register user
-        await _client.PostAsJsonAsync("/auth/register",
-            new RegisterRequest("logoutall@example.com", "Logout All User", "SecurePassword123!"));
-
-        var user = _factory.GetUserByEmail("logoutall@example.com");
-
-        // First session
-        var login1 = await _client.PostAsJsonAsync("/auth/login",
-            new LoginRequest("logoutall@example.com", "SecurePassword123!"));
-        var tokens1 = await login1.Content.ReadFromJsonAsync<AuthResponse>(_jsonOptions);
-
-        // Second session
-        var login2 = await _client.PostAsJsonAsync("/auth/login",
-            new LoginRequest("logoutall@example.com", "SecurePassword123!"));
-        var tokens2 = await login2.Content.ReadFromJsonAsync<AuthResponse>(_jsonOptions);
-
-        // Third session
-        var login3 = await _client.PostAsJsonAsync("/auth/login",
-            new LoginRequest("logoutall@example.com", "SecurePassword123!"));
-        var tokens3 = await login3.Content.ReadFromJsonAsync<AuthResponse>(_jsonOptions);
-
-        _factory.GetActiveTokenCount(user!.UserId).ShouldBe(3);
-
-        // Create a NEW HttpClient for the logout request to ensure clean headers
-        using var logoutClient = _factory.CreateClient();
-        logoutClient.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokens3!.AccessToken);
-
-        var logoutResponse = await logoutClient.PostAsJsonAsync("/auth/logout",
-            new RefreshRequest(tokens3.RefreshToken));
-
-        logoutResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        // After logout, one session should be revoked
-        _factory.GetActiveTokenCount(user.UserId).ShouldBe(2);
     }
 
     // ========================================================================
