@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Confluent.Kafka;
 using KafkaFlow.Admin.Dashboard;
 using Microsoft.AspNetCore.Mvc;
+using Minio;
 using NovaTuneApp.ApiService.Endpoints;
 using NovaTuneApp.ApiService.Extensions;
 using NovaTuneApp.ApiService.Infrastructure.Caching;
@@ -149,6 +150,30 @@ try
             name: "minio",
             timeout: TimeSpan.FromSeconds(5),
             tags: [Extensions.ReadyTag]);
+
+        // Register MinIO client for storage operations
+        var minioAccessKey = builder.Configuration["MinIO:AccessKey"] ?? "minioadmin";
+        var minioSecretKey = builder.Configuration["MinIO:SecretKey"] ?? "minioadmin";
+
+        // Parse endpoint (remove protocol for MinIO client)
+        var minioHost = minioEndpoint.Replace("http://", "").Replace("https://", "");
+        var useSSL = minioEndpoint.StartsWith("https://");
+
+        builder.Services.AddSingleton<IMinioClient>(_ =>
+            new MinioClient()
+                .WithEndpoint(minioHost)
+                .WithCredentials(minioAccessKey, minioSecretKey)
+                .WithSSL(useSSL)
+                .Build());
+    }
+    else
+    {
+        // Register a no-op MinIO client for testing environments
+        builder.Services.AddSingleton<IMinioClient>(_ =>
+            new MinioClient()
+                .WithEndpoint("localhost:9000")
+                .WithCredentials("minioadmin", "minioadmin")
+                .Build());
     }
 
     // Redis/Garnet - Optional, app degrades gracefully if unavailable
@@ -170,9 +195,10 @@ try
         builder.Services.AddSingleton<IMessageProducerService, NoOpMessageProducerService>();
     }
 
-    // Register stub services for handler dependencies.
+    // Register services for handler dependencies.
     builder.Services.AddSingleton<ITrackService, TrackService>();
     builder.Services.AddSingleton<IStorageService, StorageService>();
+    builder.Services.AddScoped<IUploadService, UploadService>();
 
     // Add services to the container.
     builder.Services.AddProblemDetails();
@@ -273,6 +299,9 @@ try
 
     // Map authentication endpoints (Stage 1)
     app.MapAuthEndpoints();
+
+    // Map upload endpoints (Stage 2)
+    app.MapUploadEndpoints();
 
     app.MapGet("/weatherforecast", () =>
         {

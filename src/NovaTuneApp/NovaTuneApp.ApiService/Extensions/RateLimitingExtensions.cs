@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
@@ -56,6 +57,22 @@ public static class RateLimitingExtensions
                         Window = TimeSpan.FromMinutes(rateLimitSettings.Auth.RefreshPerIp.WindowMinutes),
                         SegmentsPerWindow = 4
                     }));
+
+            // Upload: Initiate per user (Req 8.2, NF-2.5 - 10 req/min per user)
+            options.AddPolicy("upload-initiate", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"upload-initiate:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 4
+                    });
+            });
 
             // On rejected: add Retry-After header and return Problem Details
             options.OnRejected = async (context, token) =>

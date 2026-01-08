@@ -54,4 +54,15 @@ public class ApplicationUser
     /// Last successful login timestamp.
     /// </summary>
     public DateTime? LastLoginAt { get; set; }
+
+    /// <summary>
+    /// Total storage used by this user in bytes.
+    /// Updated when tracks are created or deleted.
+    /// </summary>
+    public long UsedStorageBytes { get; set; }
+
+    /// <summary>
+    /// Total number of tracks owned by this user.
+    /// </summary>
+    public int TrackCount { get; set; }
 }
