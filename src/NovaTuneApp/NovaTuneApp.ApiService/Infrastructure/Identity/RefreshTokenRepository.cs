@@ -38,6 +38,7 @@ public class RefreshTokenRepository : IRefreshTokenRepository
     public async Task<RefreshToken?> FindByHashAsync(string tokenHash, CancellationToken ct)
     {
         return await _session.Query<RefreshToken>()
+            .Customize(x => x.WaitForNonStaleResults())
             .Where(t =>
                 t.TokenHash == tokenHash &&
                 !t.IsRevoked &&

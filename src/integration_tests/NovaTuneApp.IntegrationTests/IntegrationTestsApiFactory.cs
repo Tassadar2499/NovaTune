@@ -137,6 +137,7 @@ public class IntegrationTestsApiFactory : IAsyncLifetime
     {
         using var session = _documentStore.OpenAsyncSession();
         return await session.Query<ApplicationUser>()
+            .Customize(x => x.WaitForNonStaleResults())
             .Where(u => u.NormalizedEmail == email.ToUpperInvariant())
             .FirstOrDefaultAsync();
     }
@@ -148,12 +149,15 @@ public class IntegrationTestsApiFactory : IAsyncLifetime
     {
         using var session = _documentStore.OpenAsyncSession();
         var user = await session.Query<ApplicationUser>()
+            .Customize(x => x.WaitForNonStaleResults())
             .Where(u => u.NormalizedEmail == email.ToUpperInvariant())
             .FirstOrDefaultAsync();
 
         if (user != null)
         {
             user.Status = status;
+            // Ensure indexes are updated before returning so API sees the change
+            session.Advanced.WaitForIndexesAfterSaveChanges();
             await session.SaveChangesAsync();
         }
     }
@@ -165,6 +169,7 @@ public class IntegrationTestsApiFactory : IAsyncLifetime
     {
         using var session = _documentStore.OpenAsyncSession();
         return await session.Query<RefreshToken>()
+            .Customize(x => x.WaitForNonStaleResults())
             .Where(t => t.UserId == userId && !t.IsRevoked && t.ExpiresAt > DateTime.UtcNow)
             .CountAsync();
     }
@@ -177,15 +182,22 @@ public class IntegrationTestsApiFactory : IAsyncLifetime
         using var session = _documentStore.OpenAsyncSession();
 
         // Delete all ApplicationUsers
-        var users = await session.Query<ApplicationUser>().ToListAsync();
+        var users = await session.Query<ApplicationUser>()
+            .Customize(x => x.WaitForNonStaleResults())
+            .ToListAsync();
         foreach (var user in users)
             session.Delete(user);
 
         // Delete all RefreshTokens
-        var tokens = await session.Query<RefreshToken>().ToListAsync();
+        var tokens = await session.Query<RefreshToken>()
+            .Customize(x => x.WaitForNonStaleResults())
+            .ToListAsync();
         foreach (var token in tokens)
             session.Delete(token);
 
+        // Wait for indexes to process the deletions before returning
+        // This ensures subsequent test operations see a clean database
+        session.Advanced.WaitForIndexesAfterSaveChanges();
         await session.SaveChangesAsync();
     }
 }

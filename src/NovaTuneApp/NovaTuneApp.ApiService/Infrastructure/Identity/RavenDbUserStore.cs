@@ -152,6 +152,7 @@ public class RavenDbUserStore :
     public async Task<ApplicationUser?> FindByEmailAsync(string normalizedEmail, CancellationToken ct)
     {
         return await _session.Query<ApplicationUser>()
+            .Customize(x => x.WaitForNonStaleResults())
             .Where(u => u.NormalizedEmail == normalizedEmail)
             .FirstOrDefaultAsync(ct);
     }
