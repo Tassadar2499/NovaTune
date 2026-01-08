@@ -7,6 +7,7 @@ using NovaTuneApp.ApiService.Extensions;
 using NovaTuneApp.ApiService.Infrastructure.Caching;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
 using NovaTuneApp.ApiService.Infrastructure.Logging;
+using NovaTuneApp.ApiService.Infrastructure.Messaging;
 using NovaTuneApp.ApiService.Infrastructure.Middleware;
 using NovaTuneApp.ApiService.Infrastructure.RateLimiting;
 using NovaTuneApp.ApiService.Services;
@@ -84,48 +85,90 @@ try
     // ============================================================================
     // Health Checks Configuration (NF-1.2)
     // ============================================================================
-    // Required dependencies: RavenDB, Redpanda/Kafka, MinIO
+    // Required dependencies: RavenDB
+    // Optional by configuration: Redpanda/Kafka, MinIO
     // Optional (degraded): Garnet/Redis cache
     // ============================================================================
 
-    var kafkaBootstrap = builder.Configuration.GetConnectionString("messaging")
-        ?? builder.Configuration["Kafka:BootstrapServers"]
-        ?? "localhost:9092";
+    var messagingEnabled = builder.Configuration.GetValue(
+        "Features:MessagingEnabled",
+        !builder.Environment.IsEnvironment("Testing"));
+    var storageEnabled = builder.Configuration.GetValue(
+        "Features:StorageEnabled",
+        !builder.Environment.IsEnvironment("Testing"));
 
-    var ravenDbUrl = builder.Configuration.GetConnectionString("novatune")
-        ?? builder.Configuration["RavenDb:Url"]
-        ?? "http://localhost:8080";
+    // Parse RavenDB connection string (format: "URL=http://host:port;Database=dbname")
+    var ravenConnectionString = builder.Configuration.GetConnectionString("novatune");
+    string ravenDbUrl;
+    if (ravenConnectionString != null && ravenConnectionString.Contains(';'))
+    {
+        var parts = ravenConnectionString.Split(';')
+            .Select(p => p.Split('=', 2))
+            .Where(p => p.Length == 2)
+            .ToDictionary(p => p[0], p => p[1]);
+        ravenDbUrl = parts.GetValueOrDefault("URL") ?? "http://localhost:8080";
+    }
+    else
+    {
+        ravenDbUrl = ravenConnectionString
+            ?? builder.Configuration["RavenDb:Url"]
+            ?? "http://localhost:8080";
+    }
 
-    var minioEndpoint = builder.Configuration.GetConnectionString("storage")
-        ?? builder.Configuration["MinIO:Endpoint"]
-        ?? "http://localhost:9000";
-
-    builder.Services.AddHealthChecks()
+    var healthChecks = builder.Services.AddHealthChecks()
         // RavenDB - Required for readiness
         .AddRavenDB(
             setup => setup.Urls = [ravenDbUrl],
             name: "ravendb",
-            tags: [Extensions.ReadyTag])
-        // Kafka/Redpanda - Required for readiness
-        .AddKafka(
+            timeout: TimeSpan.FromSeconds(5),
+            tags: [Extensions.ReadyTag]);
+
+    if (messagingEnabled)
+    {
+        var kafkaBootstrap = builder.Configuration.GetConnectionString("messaging")
+            ?? builder.Configuration["Kafka:BootstrapServers"]
+            ?? "localhost:9092";
+
+        // Kafka/Redpanda - Required for readiness when messaging is enabled
+        healthChecks.AddKafka(
             new ProducerConfig { BootstrapServers = kafkaBootstrap },
             name: "kafka",
-            tags: [Extensions.ReadyTag])
-        // MinIO/S3 - Required for readiness (custom URI check)
-        .AddUrlGroup(
+            timeout: TimeSpan.FromSeconds(5),
+            tags: [Extensions.ReadyTag]);
+    }
+
+    if (storageEnabled)
+    {
+        var minioEndpoint = builder.Configuration.GetConnectionString("storage")
+            ?? builder.Configuration["MinIO:Endpoint"]
+            ?? "http://localhost:9000";
+
+        // MinIO/S3 - Required for readiness when storage is enabled (custom URI check)
+        healthChecks.AddUrlGroup(
             new Uri($"{minioEndpoint}/minio/health/live"),
             name: "minio",
-            tags: [Extensions.ReadyTag])
-        // Redis/Garnet - Optional, app degrades gracefully if unavailable
-        .AddRedis(
-            builder.Configuration.GetConnectionString("cache") ?? "localhost:6379",
-            name: "redis",
-            tags: [Extensions.ReadyTag, Extensions.OptionalTag]);
+            timeout: TimeSpan.FromSeconds(5),
+            tags: [Extensions.ReadyTag]);
+    }
+
+    // Redis/Garnet - Optional, app degrades gracefully if unavailable
+    healthChecks.AddRedis(
+        builder.Configuration.GetConnectionString("cache") ?? "localhost:6379",
+        name: "redis",
+        timeout: TimeSpan.FromSeconds(5),
+        tags: [Extensions.ReadyTag, Extensions.OptionalTag]);
 
     // ============================================================================
     // Kafka/Redpanda Messaging Configuration
     // ============================================================================
-    builder.AddNovaTuneMessaging();
+    if (messagingEnabled)
+    {
+        builder.AddNovaTuneMessaging();
+    }
+    else
+    {
+        builder.Services.AddSingleton<IMessageProducerService, NoOpMessageProducerService>();
+    }
 
     // Register stub services for handler dependencies.
     builder.Services.AddSingleton<ITrackService, TrackService>();
@@ -215,15 +258,13 @@ try
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
     });
 
-    if (app.Environment.IsDevelopment())
+    if (app.Environment.IsDevelopment() && messagingEnabled)
     {
         // Optional: KafkaFlow dashboard for debugging
         app.UseKafkaFlowDashboard();
         // Debug config endpoint for development only (NF-5.1)
         app.MapDebugConfigEndpoint();
     }
-
-    // KafkaFlow will be started by its IHostedService automatically
 
     string[] summaries =
         ["Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"];

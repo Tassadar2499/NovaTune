@@ -10,34 +10,30 @@ namespace NovaTuneApp.Tests;
 /// Integration tests for the authentication flow.
 /// Tests registration, login, refresh token rotation, logout, and error scenarios.
 /// Uses Aspire testing infrastructure with real containers.
+/// The factory is shared across all tests via xUnit collection fixture.
 /// </summary>
 [Trait("Category", "Aspire")]
-[Collection("Auth Integration Tests")]
+[Collection("Integration Tests")]
 public class AuthIntegrationTests : IAsyncLifetime
 {
-    private AuthApiFactory _factory = null!;
-    private HttpClient _client = null!;
+    private readonly IntegrationTestsApiFactory _factory;
+    private readonly HttpClient _client;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public AuthIntegrationTests()
+    public AuthIntegrationTests(IntegrationTestsApiFactory factory)
     {
+        _factory = factory;
+        _client = factory.Client;
         _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
     }
 
     public async Task InitializeAsync()
     {
-        _factory = new AuthApiFactory();
-        await _factory.InitializeAsync();
-        _client = _factory.Client;
-        // Clean any leftover data from previous runs
+        // Clean any leftover data from previous tests
         await _factory.ClearDataAsync();
     }
 
-    public async Task DisposeAsync()
-    {
-        _client.Dispose();
-        await _factory.DisposeAsync();
-    }
+    public Task DisposeAsync() => Task.CompletedTask;
 
     // ========================================================================
     // Registration Tests

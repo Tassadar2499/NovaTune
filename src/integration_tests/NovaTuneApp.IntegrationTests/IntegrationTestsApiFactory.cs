@@ -4,15 +4,15 @@ using NovaTuneApp.ApiService.Models;
 using NovaTuneApp.ApiService.Models.Identity;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Linq;
+using Raven.Client.Documents.Operations;
+using Raven.Client.Exceptions.Database;
+using Raven.Client.ServerWide;
+using Raven.Client.ServerWide.Operations;
 using Serilog;
 
 namespace NovaTuneApp.Tests;
 
-/// <summary>
-/// Aspire-based test factory for auth integration tests.
-/// Uses real containerized infrastructure (RavenDB, Redis, Kafka).
-/// </summary>
-public class AuthApiFactory : IAsyncLifetime
+public class IntegrationTestsApiFactory : IAsyncLifetime
 {
     private DistributedApplication _app = null!;
     private HttpClient _client = null!;
@@ -20,7 +20,12 @@ public class AuthApiFactory : IAsyncLifetime
 
     public HttpClient Client => _client;
 
-    public AuthApiFactory()
+    /// <summary>
+    /// Creates a new HttpClient instance for tests that need their own client.
+    /// </summary>
+    public HttpClient CreateClient() => _app.CreateHttpClient("apiservice");
+
+    public async Task InitializeAsync()
     {
         // Reset Serilog before creating the factory to avoid disposed provider references
         Log.CloseAndFlush();
@@ -28,15 +33,16 @@ public class AuthApiFactory : IAsyncLifetime
             .MinimumLevel.Warning()
             .WriteTo.Console()
             .CreateLogger();
-    }
 
-    public async Task InitializeAsync()
-    {
         // Configure test-specific settings via command-line arguments
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NovaTuneApp_AppHost>(
             [
                 "--environment=Testing",
+                // Testing runs should not require production secrets (e.g., cache encryption keys)
+                "--NovaTune:CacheEncryption:Enabled=false",
+                "--NovaTune:TopicPrefix=testing",
+                "--Kafka:TopicPrefix=test",
                 "--JWT_SIGNING_KEY=test-signing-key-must-be-at-least-32-characters-long-for-auth-tests",
                 "--Jwt:Issuer=https://test.novatune.example",
                 "--Jwt:Audience=novatune-test-api",
@@ -55,28 +61,57 @@ public class AuthApiFactory : IAsyncLifetime
 
         _app = await appHost.BuildAsync();
 
-        // Increase startup timeout for container orchestration
-        var resourceNotificationService = _app.Services.GetRequiredService<ResourceNotificationService>();
+        // Start with timeout to fail fast instead of hanging indefinitely
+        using var startupCts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        try
+        {
+            await _app.StartAsync(startupCts.Token);
+        }
+        catch (OperationCanceledException) when (startupCts.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                "Aspire app startup exceeded 3 minutes. Common causes: a container runtime (Docker/Podman) is not running, first-time image pulls are slow, or the API service is crash-looping due to missing configuration (e.g., NovaTune:CacheEncryption enabled without a key).");
+        }
 
-        await _app.StartAsync();
-
-        // Wait for the API service to be ready
-        await resourceNotificationService.WaitForResourceAsync("apiservice", KnownResourceStates.Running)
-            .WaitAsync(TimeSpan.FromMinutes(5));
+        // Wait for the API service to be healthy (not just running)
+        // This ensures all health checks pass before tests run
+        using var healthCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        await _app.ResourceNotifications.WaitForResourceHealthyAsync("apiservice", healthCts.Token);
 
         // Get the API service HTTP client
         _client = _app.CreateHttpClient("apiservice");
 
         // Get RavenDB connection for test utilities
+        // Connection string format: "URL=http://localhost:8080;Database=novatune"
         var connectionString = await _app.GetConnectionStringAsync("novatune");
+        var parts = connectionString!.Split(';')
+            .Select(p => p.Split('=', 2))
+            .ToDictionary(p => p[0], p => p[1]);
 
-        // RavenDB connection string from Aspire is the URL to the database
         _documentStore = new DocumentStore
         {
-            Urls = [connectionString!],
-            Database = "novatune"
+            Urls = [parts["URL"]],
+            Database = parts["Database"]
         };
         _documentStore.Initialize();
+
+        // Ensure the database exists (create if it doesn't)
+        EnsureDatabaseExists(_documentStore, parts["Database"]);
+    }
+
+    /// <summary>
+    /// Ensures the specified database exists, creating it if necessary.
+    /// </summary>
+    private static void EnsureDatabaseExists(IDocumentStore store, string databaseName)
+    {
+        try
+        {
+            store.Maintenance.ForDatabase(databaseName).Send(new GetStatisticsOperation());
+        }
+        catch (DatabaseDoesNotExistException)
+        {
+            store.Maintenance.Server.Send(new CreateDatabaseOperation(new DatabaseRecord(databaseName)));
+        }
     }
 
     public async Task DisposeAsync()
