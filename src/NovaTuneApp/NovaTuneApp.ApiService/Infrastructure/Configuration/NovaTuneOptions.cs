@@ -39,6 +39,16 @@ public class NovaTuneOptions
     /// Quota limits for user resources.
     /// </summary>
     public QuotaOptions Quotas { get; set; } = new();
+
+    /// <summary>
+    /// Upload session management configuration.
+    /// </summary>
+    public UploadSessionOptions UploadSession { get; set; } = new();
+
+    /// <summary>
+    /// MinIO/S3 storage configuration.
+    /// </summary>
+    public MinioOptions Minio { get; set; } = new();
 }
 
 /// <summary>
@@ -130,4 +140,79 @@ public class QuotaOptions
     /// </summary>
     [Range(1, long.MaxValue, ErrorMessage = "MaxStoragePerUserBytes must be a positive number")]
     public long MaxStoragePerUserBytes { get; set; } = 10L * 1024 * 1024 * 1024; // 10 GB default
+}
+
+/// <summary>
+/// Upload session management configuration options.
+/// </summary>
+public class UploadSessionOptions
+{
+    /// <summary>
+    /// Default session TTL in minutes (aligned with presigned URL expiry).
+    /// </summary>
+    [Range(1, 60, ErrorMessage = "DefaultTtlMinutes must be between 1 and 60")]
+    public int DefaultTtlMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// Interval between cleanup runs in minutes.
+    /// </summary>
+    [Range(1, 60, ErrorMessage = "CleanupIntervalMinutes must be between 1 and 60")]
+    public int CleanupIntervalMinutes { get; set; } = 5;
+
+    /// <summary>
+    /// Hours to retain expired sessions before deletion.
+    /// </summary>
+    [Range(1, 168, ErrorMessage = "RetentionHours must be between 1 and 168 (1 week)")]
+    public int RetentionHours { get; set; } = 24;
+
+    /// <summary>
+    /// Maximum sessions to process per cleanup batch.
+    /// </summary>
+    [Range(10, 1000, ErrorMessage = "CleanupBatchSize must be between 10 and 1000")]
+    public int CleanupBatchSize { get; set; } = 100;
+
+    public TimeSpan DefaultTtl => TimeSpan.FromMinutes(DefaultTtlMinutes);
+    public TimeSpan CleanupInterval => TimeSpan.FromMinutes(CleanupIntervalMinutes);
+    public TimeSpan RetentionPeriod => TimeSpan.FromHours(RetentionHours);
+}
+
+/// <summary>
+/// MinIO/S3 storage configuration options.
+/// </summary>
+public class MinioOptions
+{
+    /// <summary>
+    /// Environment prefix for bucket naming (e.g., "dev", "staging", "prod").
+    /// Bucket name will be "{EnvironmentPrefix}-audio-uploads".
+    /// </summary>
+    [Required(ErrorMessage = "EnvironmentPrefix is required")]
+    [MinLength(1, ErrorMessage = "EnvironmentPrefix cannot be empty")]
+    [RegularExpression("^[a-z0-9-]+$", ErrorMessage = "EnvironmentPrefix must contain only lowercase letters, numbers, and hyphens")]
+    public string EnvironmentPrefix { get; set; } = "dev";
+
+    /// <summary>
+    /// Audio uploads bucket name suffix.
+    /// </summary>
+    public string AudioBucketSuffix { get; set; } = "audio-uploads";
+
+    /// <summary>
+    /// Whether to enable bucket versioning for DR (NF-6.5).
+    /// </summary>
+    public bool EnableVersioning { get; set; } = true;
+
+    /// <summary>
+    /// Hours to retain incomplete multipart uploads before cleanup.
+    /// </summary>
+    [Range(1, 168, ErrorMessage = "IncompleteUploadRetentionHours must be between 1 and 168")]
+    public int IncompleteUploadRetentionHours { get; set; } = 24;
+
+    /// <summary>
+    /// Gets the full audio bucket name.
+    /// </summary>
+    public string AudioBucketName => $"{EnvironmentPrefix}-{AudioBucketSuffix}";
+
+    /// <summary>
+    /// Kafka topic for MinIO bucket notifications.
+    /// </summary>
+    public string EventTopicName => $"{EnvironmentPrefix}-minio-events";
 }

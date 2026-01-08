@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Minio;
 using NovaTuneApp.ApiService.Endpoints;
 using NovaTuneApp.ApiService.Extensions;
+using NovaTuneApp.ApiService.Infrastructure.BackgroundServices;
 using NovaTuneApp.ApiService.Infrastructure.Caching;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
 using NovaTuneApp.ApiService.Infrastructure.Logging;
@@ -199,6 +200,23 @@ try
     builder.Services.AddSingleton<ITrackService, TrackService>();
     builder.Services.AddSingleton<IStorageService, StorageService>();
     builder.Services.AddScoped<IUploadService, UploadService>();
+
+    // ============================================================================
+    // MinIO Bucket Initialization (Stage 2)
+    // ============================================================================
+    // Ensures audio bucket exists with versioning enabled.
+    // ============================================================================
+    if (storageEnabled)
+    {
+        builder.Services.AddHostedService<MinioInitializationService>();
+    }
+
+    // ============================================================================
+    // Upload Session Cleanup (Stage 2)
+    // ============================================================================
+    // Background service that marks expired sessions and cleans up old records.
+    // ============================================================================
+    builder.Services.AddHostedService<UploadSessionCleanupService>();
 
     // Add services to the container.
     builder.Services.AddProblemDetails();

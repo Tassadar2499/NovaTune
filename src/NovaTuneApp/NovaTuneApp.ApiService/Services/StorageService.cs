@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Options;
 using Minio;
 using Minio.DataModel.Args;
+using NovaTuneApp.ApiService.Infrastructure.Configuration;
 using Polly;
 using Polly.Registry;
 
@@ -14,16 +16,18 @@ public class StorageService : IStorageService
     private readonly IMinioClient _minioClient;
     private readonly ILogger<StorageService> _logger;
     private readonly ResiliencePipeline _resiliencePipeline;
-    private const string AudioBucket = "novatune-audio";
+    private readonly string _audioBucket;
 
     public StorageService(
         IMinioClient minioClient,
+        IOptions<NovaTuneOptions> options,
         ILogger<StorageService> logger,
         ResiliencePipelineProvider<string> pipelineProvider)
     {
         _minioClient = minioClient;
         _logger = logger;
         _resiliencePipeline = pipelineProvider.GetPipeline(ResilienceExtensions.StoragePipeline);
+        _audioBucket = options.Value.Minio.AudioBucketName;
     }
 
     public async Task ScheduleDeletionAsync(Guid trackId, TimeSpan gracePeriod, CancellationToken ct = default)
@@ -48,7 +52,7 @@ public class StorageService : IStorageService
         return await _resiliencePipeline.ExecuteAsync(async token =>
         {
             var args = new PresignedPutObjectArgs()
-                .WithBucket(AudioBucket)
+                .WithBucket(_audioBucket)
                 .WithObject(objectKey)
                 .WithExpiry((int)expiry.TotalSeconds)
                 .WithHeaders(new Dictionary<string, string>
