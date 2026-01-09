@@ -21,7 +21,7 @@ public class MessageProducerService : IMessageProducerService
     public async Task PublishAudioUploadedAsync(AudioUploadedEvent evt, CancellationToken ct = default)
     {
         await _audioProducer.ProduceAsync(
-            messageKey: evt.TrackId.ToString(),
+            messageKey: evt.TrackId,
             messageValue: evt,
             headers: new MessageHeaders { { "schema-version", "1"u8.ToArray() } }
         );

@@ -145,14 +145,15 @@ public class UploadIngestorService : IUploadIngestorService
             user.TrackCount++;
         }
 
-        // Create OutboxMessage for AudioUploadedEvent
+        // Create OutboxMessage for AudioUploadedEvent (ULID strings per cross-cutting decision 3.1)
         var audioEvent = new AudioUploadedEvent
         {
-            TrackId = Guid.Parse(uploadSession.ReservedTrackId),
-            UserId = Guid.Parse(userId),
+            TrackId = uploadSession.ReservedTrackId,
+            UserId = userId,
             ObjectKey = objectKey,
             MimeType = contentType,
             FileSizeBytes = size,
+            Checksum = checksum,
             CorrelationId = uploadSession.UploadId,
             Timestamp = now
         };

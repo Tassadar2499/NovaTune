@@ -49,6 +49,11 @@ public class NovaTuneOptions
     /// MinIO/S3 storage configuration.
     /// </summary>
     public MinioOptions Minio { get; set; } = new();
+
+    /// <summary>
+    /// Outbox processor configuration for reliable event publication.
+    /// </summary>
+    public OutboxProcessorOptions OutboxProcessor { get; set; } = new();
 }
 
 /// <summary>
@@ -215,4 +220,44 @@ public class MinioOptions
     /// Kafka topic for MinIO bucket notifications.
     /// </summary>
     public string EventTopicName => $"{EnvironmentPrefix}-minio-events";
+}
+
+/// <summary>
+/// Outbox processor configuration options (NF-5.2).
+/// </summary>
+public class OutboxProcessorOptions
+{
+    /// <summary>
+    /// Interval between polling for pending messages in milliseconds.
+    /// </summary>
+    [Range(100, 60000, ErrorMessage = "PollingIntervalMs must be between 100 and 60000")]
+    public int PollingIntervalMs { get; set; } = 1000;
+
+    /// <summary>
+    /// Maximum number of messages to process per batch.
+    /// </summary>
+    [Range(1, 1000, ErrorMessage = "BatchSize must be between 1 and 1000")]
+    public int BatchSize { get; set; } = 100;
+
+    /// <summary>
+    /// Maximum retry attempts before marking a message as failed.
+    /// </summary>
+    [Range(1, 20, ErrorMessage = "MaxRetries must be between 1 and 20")]
+    public int MaxRetries { get; set; } = 5;
+
+    /// <summary>
+    /// Initial delay in milliseconds for exponential backoff.
+    /// </summary>
+    [Range(100, 30000, ErrorMessage = "InitialBackoffMs must be between 100 and 30000")]
+    public int InitialBackoffMs { get; set; } = 1000;
+
+    /// <summary>
+    /// Maximum delay in milliseconds for exponential backoff.
+    /// </summary>
+    [Range(1000, 300000, ErrorMessage = "MaxBackoffMs must be between 1000 and 300000")]
+    public int MaxBackoffMs { get; set; } = 60000;
+
+    public TimeSpan PollingInterval => TimeSpan.FromMilliseconds(PollingIntervalMs);
+    public TimeSpan InitialBackoff => TimeSpan.FromMilliseconds(InitialBackoffMs);
+    public TimeSpan MaxBackoff => TimeSpan.FromMilliseconds(MaxBackoffMs);
 }

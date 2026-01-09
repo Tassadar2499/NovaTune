@@ -218,6 +218,17 @@ try
     // ============================================================================
     builder.Services.AddHostedService<UploadSessionCleanupService>();
 
+    // ============================================================================
+    // Outbox Processor (NF-5.2)
+    // ============================================================================
+    // Background service that polls for pending outbox messages and publishes
+    // them to Kafka/Redpanda with retry and exponential backoff.
+    // ============================================================================
+    if (messagingEnabled)
+    {
+        builder.Services.AddHostedService<OutboxProcessorService>();
+    }
+
     // Add services to the container.
     builder.Services.AddProblemDetails();
 

@@ -1,4 +1,6 @@
+using NovaTuneApp.ApiService.Infrastructure.RavenDb.Indexes;
 using Raven.Client.Documents;
+using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Session;
 using Raven.Client.Exceptions.Database;
@@ -54,6 +56,9 @@ public static class RavenDbExtensions
 
             // Ensure the database exists (create if it doesn't)
             EnsureDatabaseExists(store, ravenDbDatabase);
+
+            // Deploy indexes from assembly
+            IndexCreation.CreateIndexes(typeof(OutboxMessages_ByStatus).Assembly, store);
 
             return store;
         });

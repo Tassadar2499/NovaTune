@@ -21,7 +21,7 @@ public class TrackService : ITrackService
         _resiliencePipeline = pipelineProvider.GetPipeline(ResilienceExtensions.DatabasePipeline);
     }
 
-    public async Task ProcessUploadedTrackAsync(Guid trackId, CancellationToken ct = default)
+    public async Task ProcessUploadedTrackAsync(string trackId, CancellationToken ct = default)
     {
         await _resiliencePipeline.ExecuteAsync(async token =>
         {
