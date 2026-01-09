@@ -1,10 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using Microsoft.Extensions.Options;
-using NSubstitute;
+using NovaTune.UnitTests.Fakes;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
-using NovaTuneApp.ApiService.Infrastructure.Identity;
 using NovaTuneApp.ApiService.Models;
 using NovaTuneApp.ApiService.Models.Identity;
 using NovaTuneApp.ApiService.Services;
@@ -20,7 +18,6 @@ public class TokenServiceTests
     private readonly TokenService _tokenService;
     private readonly JwtSettings _jwtSettings;
     private readonly ApplicationUser _testUser;
-    private const string SigningKey = "test-signing-key-must-be-at-least-32-characters-long";
 
     public TokenServiceTests()
     {
@@ -32,8 +29,7 @@ public class TokenServiceTests
             RefreshTokenExpirationMinutes = 60
         };
 
-        var keyProvider = Substitute.For<IJwtKeyProvider>();
-        keyProvider.SigningKey.Returns(Encoding.UTF8.GetBytes(SigningKey));
+        var keyProvider = new JwtKeyProviderFake();
 
         _tokenService = new TokenService(Options.Create(_jwtSettings), keyProvider);
 
