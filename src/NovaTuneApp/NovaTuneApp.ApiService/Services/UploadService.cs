@@ -1,9 +1,13 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using NovaTuneApp.ApiService.Exceptions;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
+using NovaTuneApp.ApiService.Infrastructure.Observability;
 using NovaTuneApp.ApiService.Models.Identity;
 using NovaTuneApp.ApiService.Models.Upload;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 using Raven.Client.Documents.Session;
 
 namespace NovaTuneApp.ApiService.Services;
@@ -45,6 +49,61 @@ public class UploadService : IUploadService
         InitiateUploadRequest request,
         CancellationToken ct = default)
     {
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            return await InitiateUploadInternalAsync(userId, request, stopwatch, ct);
+        }
+        catch (UploadException)
+        {
+            // UploadException already has proper error handling - rethrow as-is
+            stopwatch.Stop();
+            NovaTuneMetrics.RecordUploadInitiate("error", stopwatch.Elapsed.TotalMilliseconds);
+            throw;
+        }
+        catch (BrokenCircuitException ex)
+        {
+            // Circuit breaker open - fail closed (NF-1.4)
+            stopwatch.Stop();
+            NovaTuneMetrics.RecordUploadInitiate("error", stopwatch.Elapsed.TotalMilliseconds);
+            _logger.LogWarning(ex, "Circuit breaker open during upload initiation for user {UserId}", userId);
+            throw new UploadException(
+                UploadErrorType.ServiceUnavailable,
+                "Service temporarily unavailable. Please try again later.",
+                503);
+        }
+        catch (TimeoutRejectedException ex)
+        {
+            // Operation timed out - fail closed (NF-1.4)
+            stopwatch.Stop();
+            NovaTuneMetrics.RecordUploadInitiate("error", stopwatch.Elapsed.TotalMilliseconds);
+            _logger.LogWarning(ex, "Operation timed out during upload initiation for user {UserId}", userId);
+            throw new UploadException(
+                UploadErrorType.ServiceUnavailable,
+                "Service temporarily unavailable. Please try again later.",
+                503);
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            NovaTuneMetrics.RecordUploadInitiate("error", stopwatch.Elapsed.TotalMilliseconds);
+
+            // Log unexpected exceptions and fail closed (NF-1.4)
+            _logger.LogError(ex, "Unexpected error during upload initiation for user {UserId}", userId);
+            throw new UploadException(
+                UploadErrorType.ServiceUnavailable,
+                "Service temporarily unavailable. Please try again later.",
+                503);
+        }
+    }
+
+    private async Task<InitiateUploadResponse> InitiateUploadInternalAsync(
+        string userId,
+        InitiateUploadRequest request,
+        Stopwatch stopwatch,
+        CancellationToken ct)
+    {
         // 1. Validate MIME type
         if (!AllowedMimeTypes.Contains(request.MimeType))
         {
@@ -81,6 +140,7 @@ public class UploadService : IUploadService
                 404);
         }
 
+        // Check storage quota
         var projectedUsage = user.UsedStorageBytes + request.FileSizeBytes;
         if (projectedUsage > _options.Quotas.MaxStoragePerUserBytes)
         {
@@ -92,6 +152,20 @@ public class UploadService : IUploadService
                 {
                     ["usedBytes"] = user.UsedStorageBytes,
                     ["quotaBytes"] = _options.Quotas.MaxStoragePerUserBytes
+                });
+        }
+
+        // Check track count quota (NF-2.4)
+        if (user.TrackCount >= _options.Quotas.MaxTracksPerUser)
+        {
+            throw new UploadException(
+                UploadErrorType.QuotaExceeded,
+                $"You have reached the maximum of {_options.Quotas.MaxTracksPerUser} tracks. Please delete some tracks to upload more.",
+                400,
+                new Dictionary<string, object>
+                {
+                    ["trackCount"] = user.TrackCount,
+                    ["maxTracks"] = _options.Quotas.MaxTracksPerUser
                 });
         }
 
@@ -126,9 +200,15 @@ public class UploadService : IUploadService
         await _session.StoreAsync(uploadSession, ct);
         await _session.SaveChangesAsync(ct);
 
+        // Record metrics (NF-4.4)
+        stopwatch.Stop();
+        NovaTuneMetrics.RecordUploadInitiate("success", stopwatch.Elapsed.TotalMilliseconds);
+        NovaTuneMetrics.RecordUploadSessionCreated();
+
+        // Upload initiated log (NF-4.x) - note: presigned URL and full objectKey NOT logged per NF-4.5
         _logger.LogInformation(
-            "Upload session initiated: {UploadId} for user {UserId}, track {TrackId}, file {FileName} ({FileSize})",
-            uploadId, userId, trackId, request.FileName, FormatBytes(request.FileSizeBytes));
+            "Upload initiated: UserId={UserId}, UploadId={UploadId}, TrackId={TrackId}, MimeType={MimeType}, FileSize={FileSize}",
+            userId, uploadId, trackId, request.MimeType, request.FileSizeBytes);
 
         return new InitiateUploadResponse(
             uploadId,

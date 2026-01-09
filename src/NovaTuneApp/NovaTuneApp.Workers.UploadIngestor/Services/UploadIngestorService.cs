@@ -5,6 +5,7 @@ using Minio;
 using Minio.DataModel.Args;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Messages;
+using NovaTuneApp.ApiService.Infrastructure.Observability;
 using NovaTuneApp.ApiService.Models;
 using NovaTuneApp.ApiService.Models.Identity;
 using NovaTuneApp.ApiService.Models.Outbox;
@@ -64,8 +65,9 @@ public class UploadIngestorService : IUploadIngestorService
 
         if (uploadSession is null)
         {
+            // Session not found log (NF-4.x)
             _logger.LogWarning(
-                "UploadSession not found for ObjectKey {ObjectKey}. Orphan upload detected.",
+                "Session not found: ObjectKey={ObjectKey}",
                 objectKey);
             // Ack message (no retry) - this is an orphan upload
             return;
@@ -97,8 +99,9 @@ public class UploadIngestorService : IUploadIngestorService
         var validationError = ValidateUpload(uploadSession, contentType, size);
         if (validationError is not null)
         {
+            // Validation failed log (NF-4.x)
             _logger.LogWarning(
-                "Validation failed for UploadSession {UploadId}: {Error}",
+                "Validation failed: UploadId={UploadId}, Reason={Reason}",
                 uploadSession.UploadId,
                 validationError);
 
@@ -114,6 +117,9 @@ public class UploadIngestorService : IUploadIngestorService
         var checksum = await ComputeChecksumAsync(objectKey, ct);
 
         // 6. Begin RavenDB transaction: Create Track, Update UploadSession, Insert OutboxMessage
+        // Enable optimistic concurrency for user storage updates (NF-2.4)
+        session.Advanced.UseOptimisticConcurrency = true;
+
         var now = DateTimeOffset.UtcNow;
 
         // Create Track record
@@ -175,11 +181,15 @@ public class UploadIngestorService : IUploadIngestorService
         // Save all changes in single transaction
         await session.SaveChangesAsync(ct);
 
+        // Record metric (NF-4.4)
+        NovaTuneMetrics.RecordTrackCreated();
+
+        // Track created log (NF-4.x)
         _logger.LogInformation(
-            "Successfully processed upload {UploadId}: Track {TrackId} created, checksum: {Checksum}",
-            uploadSession.UploadId,
-            track.Id,
-            checksum);
+            "Track created: TrackId={TrackId}, UserId={UserId}, ObjectKey={ObjectKey}",
+            uploadSession.ReservedTrackId,
+            userId,
+            objectKey);
     }
 
     private string? ValidateUpload(UploadSession uploadSession, string contentType, long size)

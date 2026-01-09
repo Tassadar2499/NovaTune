@@ -54,6 +54,73 @@ public static class NovaTuneMetrics
         description: "Size of uploaded audio files in bytes");
 
     // ============================================================================
+    // Upload Initiation Metrics (NF-4.4)
+    // ============================================================================
+
+    /// <summary>
+    /// Counter for upload initiation requests.
+    /// Tags: status (success, error)
+    /// </summary>
+    public static readonly Counter<long> UploadInitiateTotal = Meter.CreateCounter<long>(
+        name: "novatune.upload_initiate_total",
+        unit: "{requests}",
+        description: "Total number of upload initiation requests");
+
+    /// <summary>
+    /// Histogram for upload initiation duration.
+    /// </summary>
+    public static readonly Histogram<double> UploadInitiateDuration = Meter.CreateHistogram<double>(
+        name: "novatune.upload_initiate_duration_ms",
+        unit: "ms",
+        description: "Upload initiation request duration in milliseconds");
+
+    /// <summary>
+    /// Counter for upload sessions created.
+    /// </summary>
+    public static readonly Counter<long> UploadSessionCreatedTotal = Meter.CreateCounter<long>(
+        name: "novatune.upload_session_created_total",
+        unit: "{sessions}",
+        description: "Total number of upload sessions created");
+
+    /// <summary>
+    /// Counter for MinIO notifications received.
+    /// </summary>
+    public static readonly Counter<long> MinioNotificationReceivedTotal = Meter.CreateCounter<long>(
+        name: "novatune.minio_notification_received_total",
+        unit: "{notifications}",
+        description: "Total number of MinIO notifications received");
+
+    /// <summary>
+    /// Counter for tracks created from uploads.
+    /// </summary>
+    public static readonly Counter<long> TrackCreatedTotal = Meter.CreateCounter<long>(
+        name: "novatune.track_created_total",
+        unit: "{tracks}",
+        description: "Total number of tracks created from uploads");
+
+    // ============================================================================
+    // Outbox Metrics (NF-4.4)
+    // ============================================================================
+
+    /// <summary>
+    /// Counter for outbox messages published.
+    /// Tags: event_type
+    /// </summary>
+    public static readonly Counter<long> OutboxPublishedTotal = Meter.CreateCounter<long>(
+        name: "novatune.outbox_published_total",
+        unit: "{messages}",
+        description: "Total number of outbox messages published");
+
+    /// <summary>
+    /// Counter for outbox messages that failed permanently.
+    /// Tags: event_type
+    /// </summary>
+    public static readonly Counter<long> OutboxFailedTotal = Meter.CreateCounter<long>(
+        name: "novatune.outbox_failed_total",
+        unit: "{messages}",
+        description: "Total number of outbox messages that failed permanently");
+
+    // ============================================================================
     // Track Deletion Metrics
     // ============================================================================
 
@@ -218,5 +285,57 @@ public static class NovaTuneMetrics
             { "policy", policy }
         };
         RateLimitViolations.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records an upload initiation request.
+    /// </summary>
+    public static void RecordUploadInitiate(string status, double durationMs)
+    {
+        var tags = new TagList { { "status", status } };
+        UploadInitiateTotal.Add(1, tags);
+        UploadInitiateDuration.Record(durationMs);
+    }
+
+    /// <summary>
+    /// Records an upload session creation.
+    /// </summary>
+    public static void RecordUploadSessionCreated()
+    {
+        UploadSessionCreatedTotal.Add(1);
+    }
+
+    /// <summary>
+    /// Records a MinIO notification received.
+    /// </summary>
+    public static void RecordMinioNotificationReceived()
+    {
+        MinioNotificationReceivedTotal.Add(1);
+    }
+
+    /// <summary>
+    /// Records a track creation.
+    /// </summary>
+    public static void RecordTrackCreated()
+    {
+        TrackCreatedTotal.Add(1);
+    }
+
+    /// <summary>
+    /// Records an outbox message published.
+    /// </summary>
+    public static void RecordOutboxPublished(string eventType)
+    {
+        var tags = new TagList { { "event_type", eventType } };
+        OutboxPublishedTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records an outbox message that failed permanently.
+    /// </summary>
+    public static void RecordOutboxFailed(string eventType)
+    {
+        var tags = new TagList { { "event_type", eventType } };
+        OutboxFailedTotal.Add(1, tags);
     }
 }

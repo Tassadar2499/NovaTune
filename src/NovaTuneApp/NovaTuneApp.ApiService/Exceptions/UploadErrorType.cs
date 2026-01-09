@@ -10,5 +10,11 @@ public enum UploadErrorType
     QuotaExceeded,
     InvalidFileName,
     SessionNotFound,
-    SessionExpired
+    SessionExpired,
+
+    /// <summary>
+    /// Service unavailable due to dependency failure (NF-1.4 fail-closed behavior).
+    /// Returns HTTP 503.
+    /// </summary>
+    ServiceUnavailable
 }

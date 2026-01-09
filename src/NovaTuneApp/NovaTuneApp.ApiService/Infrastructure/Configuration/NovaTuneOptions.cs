@@ -118,15 +118,30 @@ public class RateLimitOptions
 }
 
 /// <summary>
-/// Quota configuration options for user resources.
+/// Quota configuration options for user resources (Req 2, NF-2.4).
 /// </summary>
 public class QuotaOptions
 {
     /// <summary>
     /// Maximum file size for track uploads in bytes.
+    /// Enforced at upload initiation and worker validation.
     /// </summary>
     [Range(1, long.MaxValue, ErrorMessage = "MaxUploadSizeBytes must be a positive number")]
     public long MaxUploadSizeBytes { get; set; } = 100 * 1024 * 1024; // 100 MB default
+
+    /// <summary>
+    /// Maximum total storage per user in bytes.
+    /// Enforced at upload initiation.
+    /// </summary>
+    [Range(1, long.MaxValue, ErrorMessage = "MaxStoragePerUserBytes must be a positive number")]
+    public long MaxStoragePerUserBytes { get; set; } = 1L * 1024 * 1024 * 1024; // 1 GB default per Req 2
+
+    /// <summary>
+    /// Maximum number of tracks per user.
+    /// Enforced at upload initiation.
+    /// </summary>
+    [Range(1, int.MaxValue, ErrorMessage = "MaxTracksPerUser must be a positive number")]
+    public int MaxTracksPerUser { get; set; } = 500;
 
     /// <summary>
     /// Maximum number of playlists per user.
@@ -139,12 +154,6 @@ public class QuotaOptions
     /// </summary>
     [Range(1, int.MaxValue, ErrorMessage = "MaxTracksPerPlaylist must be a positive number")]
     public int MaxTracksPerPlaylist { get; set; } = 500;
-
-    /// <summary>
-    /// Maximum total storage per user in bytes.
-    /// </summary>
-    [Range(1, long.MaxValue, ErrorMessage = "MaxStoragePerUserBytes must be a positive number")]
-    public long MaxStoragePerUserBytes { get; set; } = 10L * 1024 * 1024 * 1024; // 10 GB default
 }
 
 /// <summary>

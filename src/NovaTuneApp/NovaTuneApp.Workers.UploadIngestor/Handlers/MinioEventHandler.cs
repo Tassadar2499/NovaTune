@@ -1,4 +1,5 @@
 using KafkaFlow;
+using NovaTuneApp.ApiService.Infrastructure.Observability;
 using NovaTuneApp.ApiService.Models.Storage;
 using NovaTuneApp.Workers.UploadIngestor.Services;
 
@@ -51,11 +52,14 @@ public class MinioEventHandler : IMessageHandler<MinioEvent>
             return;
         }
 
-        _logger.LogInformation(
-            "Processing MinIO upload event for {ObjectKey}, size: {Size}, type: {ContentType}",
+        // Record metric (NF-4.4)
+        NovaTuneMetrics.RecordMinioNotificationReceived();
+
+        // MinIO notification received log (NF-4.x) - Debug level
+        _logger.LogDebug(
+            "MinIO notification received: ObjectKey={ObjectKey}, Size={Size}",
             objectKey,
-            record.S3.Object.Size,
-            record.S3.Object.ContentType);
+            record.S3.Object.Size);
 
         try
         {

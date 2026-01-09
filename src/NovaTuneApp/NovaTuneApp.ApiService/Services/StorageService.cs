@@ -9,13 +9,14 @@ namespace NovaTuneApp.ApiService.Services;
 
 /// <summary>
 /// Implementation of IStorageService with MinIO integration and resilience scaffolding (NF-1.4).
-/// Storage operations are wrapped with timeout, circuit breaker, and bulkhead policies.
+/// Storage operations are wrapped with timeout, circuit breaker, retry, and bulkhead policies.
 /// </summary>
 public class StorageService : IStorageService
 {
     private readonly IMinioClient _minioClient;
     private readonly ILogger<StorageService> _logger;
-    private readonly ResiliencePipeline _resiliencePipeline;
+    private readonly ResiliencePipeline _generalPipeline;
+    private readonly ResiliencePipeline _presignPipeline;
     private readonly string _audioBucket;
 
     public StorageService(
@@ -26,13 +27,14 @@ public class StorageService : IStorageService
     {
         _minioClient = minioClient;
         _logger = logger;
-        _resiliencePipeline = pipelineProvider.GetPipeline(ResilienceExtensions.StoragePipeline);
+        _generalPipeline = pipelineProvider.GetPipeline(ResilienceExtensions.StoragePipeline);
+        _presignPipeline = pipelineProvider.GetPipeline(ResilienceExtensions.StoragePresignPipeline);
         _audioBucket = options.Value.Minio.AudioBucketName;
     }
 
     public async Task ScheduleDeletionAsync(Guid trackId, TimeSpan gracePeriod, CancellationToken ct = default)
     {
-        await _resiliencePipeline.ExecuteAsync(async token =>
+        await _generalPipeline.ExecuteAsync(async token =>
         {
             // TODO: Replace stub with actual MinIO/S3 deletion scheduling
             _logger.LogInformation(
@@ -49,7 +51,8 @@ public class StorageService : IStorageService
         TimeSpan expiry,
         CancellationToken ct = default)
     {
-        return await _resiliencePipeline.ExecuteAsync(async token =>
+        // Use presign pipeline: 5s timeout, 1 retry per NF-1.4
+        return await _presignPipeline.ExecuteAsync(async token =>
         {
             var args = new PresignedPutObjectArgs()
                 .WithBucket(_audioBucket)

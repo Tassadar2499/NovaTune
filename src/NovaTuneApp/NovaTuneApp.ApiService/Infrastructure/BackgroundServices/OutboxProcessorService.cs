@@ -2,6 +2,7 @@ using KafkaFlow;
 using KafkaFlow.Producers;
 using Microsoft.Extensions.Options;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
+using NovaTuneApp.ApiService.Infrastructure.Observability;
 using NovaTuneApp.ApiService.Models.Outbox;
 using Raven.Client.Documents;
 
@@ -96,10 +97,14 @@ public class OutboxProcessorService : BackgroundService
                 message.Status = OutboxMessageStatus.Published;
                 message.PublishedAt = DateTimeOffset.UtcNow;
 
+                // Record metric (NF-4.4)
+                NovaTuneMetrics.RecordOutboxPublished(message.MessageType);
+
+                // Outbox published log (NF-4.x) - Debug level
                 _logger.LogDebug(
-                    "Successfully published outbox message {MessageId} to topic {Topic}",
-                    message.Id,
-                    message.Topic);
+                    "Outbox published: EventType={EventType}, TrackId={TrackId}",
+                    message.MessageType,
+                    message.PartitionKey);
             }
             catch (Exception ex)
             {
@@ -109,6 +114,9 @@ public class OutboxProcessorService : BackgroundService
                 if (message.Attempts >= processorOptions.MaxRetries)
                 {
                     message.Status = OutboxMessageStatus.Failed;
+
+                    // Record metric (NF-4.4)
+                    NovaTuneMetrics.RecordOutboxFailed(message.MessageType);
 
                     _logger.LogError(
                         ex,

@@ -33,6 +33,9 @@ public static class UploadProblemDetailsFactory
             UploadErrorType.SessionExpired => (
                 "session-expired",
                 "Upload Session Expired"),
+            UploadErrorType.ServiceUnavailable => (
+                "service-unavailable",
+                "Service Temporarily Unavailable"),
             _ => (
                 "upload-error",
                 "Upload Error")
