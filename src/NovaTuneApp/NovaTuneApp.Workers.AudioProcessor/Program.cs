@@ -4,11 +4,15 @@ using KafkaFlow;
 using KafkaFlow.Producers;
 using KafkaFlow.Retry;
 using KafkaFlow.Serializer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Minio;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Messages;
 using NovaTuneApp.Workers.AudioProcessor.Handlers;
+using NovaTuneApp.Workers.AudioProcessor.HealthChecks;
 using NovaTuneApp.Workers.AudioProcessor.Middleware;
 using NovaTuneApp.Workers.AudioProcessor.Services;
 using Raven.Client.Documents;
@@ -27,7 +31,7 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    var builder = Host.CreateApplicationBuilder(args);
+    var builder = WebApplication.CreateBuilder(args);
 
     // Add service defaults (OpenTelemetry, health checks, etc.)
     builder.AddServiceDefaults();
@@ -116,21 +120,29 @@ try
             .Build());
 
     // ============================================================================
-    // Health Checks (NF-1.2)
+    // Health Checks (NF-1.2, 08-health-checks.md)
     // ============================================================================
     builder.Services.AddHealthChecks()
+        // Infrastructure connectivity
         .AddRavenDB(
             setup => setup.Urls = [ravenDbUrl],
             name: "ravendb",
+            tags: [Extensions.ReadyTag],
             timeout: TimeSpan.FromSeconds(5))
         .AddKafka(
             new ProducerConfig { BootstrapServers = bootstrapServers },
             name: "kafka",
+            tags: [Extensions.ReadyTag],
             timeout: TimeSpan.FromSeconds(5))
         .AddUrlGroup(
             new Uri($"{minioEndpoint}/minio/health/live"),
             name: "minio",
-            timeout: TimeSpan.FromSeconds(5));
+            tags: [Extensions.ReadyTag],
+            timeout: TimeSpan.FromSeconds(5))
+        // Local requirements
+        .AddCheck<FfprobeHealthCheck>("ffprobe", tags: [Extensions.ReadyTag])
+        .AddCheck<FfmpegHealthCheck>("ffmpeg", tags: [Extensions.ReadyTag])
+        .AddCheck<TempDirectoryHealthCheck>("temp-directory", tags: [Extensions.ReadyTag]);
 
     // ============================================================================
     // AudioProcessor Configuration (from 01-event-consumption.md)
@@ -221,8 +233,12 @@ try
     // ============================================================================
     builder.Services.AddHostedService<KafkaFlowHostedService>();
 
-    var host = builder.Build();
-    await host.RunAsync();
+    var app = builder.Build();
+
+    // Map health endpoints (08-health-checks.md)
+    app.MapDefaultEndpoints();
+
+    await app.RunAsync();
 }
 catch (Exception ex)
 {

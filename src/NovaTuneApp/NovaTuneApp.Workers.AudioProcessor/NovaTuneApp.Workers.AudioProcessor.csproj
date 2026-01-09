@@ -8,6 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- ASP.NET Core for health endpoints (08-health-checks.md) -->
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\NovaTuneApp.ServiceDefaults\NovaTuneApp.ServiceDefaults.csproj" />
         <ProjectReference Include="..\NovaTuneApp.ApiService\NovaTuneApp.ApiService.csproj" />
     </ItemGroup>
