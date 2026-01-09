@@ -57,10 +57,14 @@ try
         builder.Configuration.GetSection(NovaTuneOptions.SectionName));
     builder.Services.Configure<AudioProcessorOptions>(
         builder.Configuration.GetSection(AudioProcessorOptions.SectionName));
+    builder.Services.Configure<WorkerKafkaOptions>(
+        builder.Configuration.GetSection(WorkerKafkaOptions.SectionName));
 
-    var topicPrefix = builder.Configuration["NovaTune:TopicPrefix"]
-        ?? builder.Configuration["Kafka:TopicPrefix"]
-        ?? "dev";
+    // Bind Kafka options for use during startup
+    var kafkaOptions = builder.Configuration
+        .GetSection(WorkerKafkaOptions.SectionName)
+        .Get<WorkerKafkaOptions>() ?? new WorkerKafkaOptions();
+
     var bootstrapServers = builder.Configuration.GetConnectionString("messaging")
         ?? builder.Configuration["Kafka:BootstrapServers"]
         ?? "localhost:9092";
@@ -154,7 +158,8 @@ try
     // ============================================================================
     // KafkaFlow Consumer (Req 3.2 - Consume AudioUploadedEvent)
     // ============================================================================
-    var dlqTopic = $"{topicPrefix}-audio-events-dlq";
+    var audioEventsTopic = kafkaOptions.GetAudioEventsTopic();
+    var dlqTopic = kafkaOptions.GetDlqTopic();
 
     builder.Services.AddKafka(kafka => kafka
         .UseMicrosoftLog()
@@ -173,8 +178,8 @@ try
 
             // Audio events consumer (NF-2.1 - bounded concurrency)
             cluster.AddConsumer(consumer => consumer
-                .Topic($"{topicPrefix}-audio-events")
-                .WithGroupId("audio-processor-worker")
+                .Topic(audioEventsTopic)
+                .WithGroupId(kafkaOptions.ConsumerGroup)
                 .WithBufferSize(audioProcessorOptions.MaxConcurrency * 2)
                 .WithWorkersCount(audioProcessorOptions.MaxConcurrency)
                 .WithAutoOffsetReset(KafkaFlow.AutoOffsetReset.Earliest)

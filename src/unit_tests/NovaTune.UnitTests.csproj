@@ -18,6 +18,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\NovaTuneApp\NovaTuneApp.ApiService\NovaTuneApp.ApiService.csproj"/>
+        <ProjectReference Include="..\NovaTuneApp\NovaTuneApp.Workers.AudioProcessor\NovaTuneApp.Workers.AudioProcessor.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
