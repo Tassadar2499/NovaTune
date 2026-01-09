@@ -99,6 +99,43 @@ public static class NovaTuneMetrics
         description: "Total number of tracks created from uploads");
 
     // ============================================================================
+    // Audio Processing Metrics (NF-4.2)
+    // ============================================================================
+
+    /// <summary>
+    /// Counter for audio processing started.
+    /// </summary>
+    public static readonly Counter<long> AudioProcessingStartedTotal = Meter.CreateCounter<long>(
+        name: "novatune.audio_processing_started_total",
+        unit: "{events}",
+        description: "Total number of audio processing jobs started");
+
+    /// <summary>
+    /// Counter for audio processing completed successfully.
+    /// </summary>
+    public static readonly Counter<long> AudioProcessingCompletedTotal = Meter.CreateCounter<long>(
+        name: "novatune.audio_processing_completed_total",
+        unit: "{events}",
+        description: "Total number of audio processing jobs completed successfully");
+
+    /// <summary>
+    /// Counter for audio processing failures.
+    /// Tags: reason (timeout, validation_error, ffprobe_error, etc.)
+    /// </summary>
+    public static readonly Counter<long> AudioProcessingFailedTotal = Meter.CreateCounter<long>(
+        name: "novatune.audio_processing_failed_total",
+        unit: "{events}",
+        description: "Total number of audio processing jobs that failed");
+
+    /// <summary>
+    /// Histogram for audio processing duration.
+    /// </summary>
+    public static readonly Histogram<double> AudioProcessingDuration = Meter.CreateHistogram<double>(
+        name: "novatune.audio_processing_duration_ms",
+        unit: "ms",
+        description: "Audio processing duration in milliseconds");
+
+    // ============================================================================
     // Outbox Metrics (NF-4.4)
     // ============================================================================
 
@@ -337,5 +374,42 @@ public static class NovaTuneMetrics
     {
         var tags = new TagList { { "event_type", eventType } };
         OutboxFailedTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records an audio processing job started.
+    /// </summary>
+    public static void RecordAudioProcessingStarted()
+    {
+        AudioProcessingStartedTotal.Add(1);
+    }
+
+    /// <summary>
+    /// Records an audio processing job completed successfully.
+    /// </summary>
+    public static void RecordAudioProcessingCompleted()
+    {
+        AudioProcessingCompletedTotal.Add(1);
+    }
+
+    /// <summary>
+    /// Records an audio processing job failure.
+    /// </summary>
+    public static void RecordAudioProcessingFailed(string? reason = null)
+    {
+        var tags = new TagList();
+        if (reason != null)
+        {
+            tags.Add("reason", reason);
+        }
+        AudioProcessingFailedTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records audio processing duration.
+    /// </summary>
+    public static void RecordAudioProcessingDuration(double durationMs)
+    {
+        AudioProcessingDuration.Record(durationMs);
     }
 }

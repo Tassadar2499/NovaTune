@@ -110,6 +110,16 @@ else
         .WithEnvironment("NovaTune__TopicPrefix", "dev")
         .WithEnvironment("NovaTune__Minio__EnvironmentPrefix", "dev");
 
+    // Audio Processor Worker - consumes AudioUploadedEvents, extracts metadata, generates waveforms
+    builder.AddProject<Projects.NovaTuneApp_Workers_AudioProcessor>("audio-processor")
+        .WithReference(messaging)
+        .WaitFor(messaging)
+        .WithReference(database)
+        .WaitFor(database)
+        .WithReference(storage.GetEndpoint("api"))
+        .WaitFor(storage)
+        .WithEnvironment("NovaTune__TopicPrefix", "dev");
+
     builder.AddProject<Projects.NovaTuneApp_Web>("webfrontend")
         .WithExternalHttpEndpoints()
         .WithHttpHealthCheck("/health")
