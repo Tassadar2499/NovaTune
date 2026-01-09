@@ -166,4 +166,31 @@ public class StorageService : IStorageService
             _logger.LogDebug("Uploaded {SourcePath} to {ObjectKey}", sourcePath, objectKey);
         }, ct);
     }
+
+    /// <summary>
+    /// Generates a presigned GET URL for streaming (Req 5.2, NF-3.3).
+    /// Uses presign pipeline: 5s timeout, 1 retry per NF-1.4.
+    /// </summary>
+    public async Task<PresignedDownloadResult> GeneratePresignedDownloadUrlAsync(
+        string objectKey,
+        TimeSpan expiry,
+        CancellationToken ct = default)
+    {
+        return await _presignPipeline.ExecuteAsync(async token =>
+        {
+            var args = new PresignedGetObjectArgs()
+                .WithBucket(_audioBucket)
+                .WithObject(objectKey)
+                .WithExpiry((int)expiry.TotalSeconds);
+
+            var url = await _minioClient.PresignedGetObjectAsync(args);
+            var expiresAt = DateTimeOffset.UtcNow.Add(expiry);
+
+            _logger.LogDebug(
+                "Generated presigned download URL for {ObjectKey}, expires at {ExpiresAt}",
+                objectKey, expiresAt);
+
+            return new PresignedDownloadResult(url, expiresAt);
+        }, ct);
+    }
 }

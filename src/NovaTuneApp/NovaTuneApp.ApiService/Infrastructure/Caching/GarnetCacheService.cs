@@ -60,4 +60,25 @@ public class GarnetCacheService : ICacheService
             return await db.KeyExistsAsync(key);
         }, ct);
     }
+
+    public async Task RemoveByPatternAsync(string pattern, CancellationToken ct = default)
+    {
+        await _resiliencePipeline.ExecuteAsync(async token =>
+        {
+            var db = _redis.GetDatabase();
+            var server = _redis.GetServer(_redis.GetEndPoints().First());
+
+            // Use SCAN to find all matching keys (safer than KEYS for production)
+            var keys = new List<RedisKey>();
+            await foreach (var key in server.KeysAsync(pattern: pattern))
+            {
+                keys.Add(key);
+            }
+
+            if (keys.Count > 0)
+            {
+                await db.KeyDeleteAsync(keys.ToArray());
+            }
+        }, ct);
+    }
 }

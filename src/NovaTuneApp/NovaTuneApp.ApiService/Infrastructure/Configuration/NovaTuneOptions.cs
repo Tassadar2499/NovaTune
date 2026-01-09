@@ -72,20 +72,43 @@ public class PresignedUrlOptions
 }
 
 /// <summary>
-/// Cache encryption configuration options.
+/// Cache encryption configuration options (Req 10.3, NF-3.2).
 /// </summary>
 public class CacheEncryptionOptions
 {
+    public const string SectionName = "CacheEncryption";
+
     /// <summary>
-    /// Encryption key for cached data.
+    /// Encryption key secret for cached data.
     /// Required in non-development environments with minimum 32 characters.
     /// </summary>
     public string? Key { get; set; }
 
     /// <summary>
+    /// Alias for Key property - used by AesGcmCacheEncryptionProvider.
+    /// </summary>
+    public string? KeySecret
+    {
+        get => Key;
+        set => Key = value;
+    }
+
+    /// <summary>
     /// Whether encryption is enabled.
     /// </summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Current key version identifier for key rotation tracking.
+    /// Default: "v1"
+    /// </summary>
+    public string KeyVersion { get; set; } = "v1";
+
+    /// <summary>
+    /// Encryption algorithm (for documentation purposes).
+    /// Default: "AES-256-GCM"
+    /// </summary>
+    public string Algorithm { get; set; } = "AES-256-GCM";
 
     /// <summary>
     /// Minimum required key length for entropy requirements.

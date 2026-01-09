@@ -202,6 +202,19 @@ try
     builder.Services.AddScoped<IUploadService, UploadService>();
 
     // ============================================================================
+    // Streaming Services (Stage 4)
+    // ============================================================================
+    // Presigned URL generation with encrypted cache support.
+    // ============================================================================
+    builder.Services.Configure<StreamingOptions>(
+        builder.Configuration.GetSection(StreamingOptions.SectionName));
+    builder.Services.Configure<CacheEncryptionOptions>(
+        builder.Configuration.GetSection(CacheEncryptionOptions.SectionName));
+    builder.Services.AddSingleton<ICacheEncryptionProvider, AesGcmCacheEncryptionProvider>();
+    builder.Services.AddSingleton<IEncryptedCacheService, EncryptedCacheService>();
+    builder.Services.AddScoped<IStreamingService, StreamingService>();
+
+    // ============================================================================
     // MinIO Bucket Initialization (Stage 2)
     // ============================================================================
     // Ensures audio bucket exists with versioning enabled.
@@ -331,6 +344,9 @@ try
 
     // Map upload endpoints (Stage 2)
     app.MapUploadEndpoints();
+
+    // Map streaming endpoints (Stage 4)
+    app.MapStreamEndpoints();
 
     app.MapGet("/weatherforecast", () =>
         {

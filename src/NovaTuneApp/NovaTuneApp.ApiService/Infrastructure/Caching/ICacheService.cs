@@ -24,4 +24,12 @@ public interface ICacheService
     /// Checks if a key exists in the cache.
     /// </summary>
     Task<bool> ExistsAsync(string key, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes all keys matching a pattern from the cache.
+    /// Pattern supports wildcard (*) for matching multiple keys.
+    /// </summary>
+    /// <param name="pattern">Key pattern (e.g., "stream:userId:*").</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task RemoveByPatternAsync(string pattern, CancellationToken ct = default);
 }

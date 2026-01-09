@@ -74,6 +74,22 @@ public static class RateLimitingExtensions
                     });
             });
 
+            // Streaming: Per user (Req 8.2, NF-2.5 - 60 req/min per user)
+            options.AddPolicy("stream-url", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"stream-url:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 60,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 4
+                    });
+            });
+
             // On rejected: add Retry-After header and return Problem Details
             options.OnRejected = async (context, token) =>
             {

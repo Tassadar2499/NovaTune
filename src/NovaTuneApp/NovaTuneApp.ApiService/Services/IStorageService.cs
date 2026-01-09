@@ -52,9 +52,26 @@ public interface IStorageService
     /// <param name="contentType">Content type of the file.</param>
     /// <param name="ct">Cancellation token.</param>
     Task UploadFromFileAsync(string objectKey, string sourcePath, string contentType, CancellationToken ct = default);
+
+    /// <summary>
+    /// Generates a presigned GET URL for streaming (Req 5.2).
+    /// </summary>
+    /// <param name="objectKey">The storage object key.</param>
+    /// <param name="expiry">URL expiry duration.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Presigned URL and expiry timestamp.</returns>
+    Task<PresignedDownloadResult> GeneratePresignedDownloadUrlAsync(
+        string objectKey,
+        TimeSpan expiry,
+        CancellationToken ct = default);
 }
 
 /// <summary>
-/// Result of presigned URL generation.
+/// Result of presigned upload URL generation.
 /// </summary>
 public record PresignedUploadResult(string Url, DateTimeOffset ExpiresAt);
+
+/// <summary>
+/// Result of presigned download URL generation.
+/// </summary>
+public record PresignedDownloadResult(string Url, DateTimeOffset ExpiresAt);

@@ -75,6 +75,21 @@ public class StorageServiceFake : IStorageService
         return Task.FromResult(new PresignedUploadResult(url, expiresAt));
     }
 
+    public Task<PresignedDownloadResult> GeneratePresignedDownloadUrlAsync(
+        string objectKey,
+        TimeSpan expiry,
+        CancellationToken ct = default)
+    {
+        if (ExceptionToThrow != null)
+        {
+            throw ExceptionToThrow;
+        }
+
+        var url = $"https://storage.example.com/{objectKey}?presigned=true&action=download";
+        var expiresAt = DateTimeOffset.UtcNow.Add(expiry);
+        return Task.FromResult(new PresignedDownloadResult(url, expiresAt));
+    }
+
     public async Task DownloadToFileAsync(string objectKey, string destinationPath, CancellationToken ct = default)
     {
         await DownloadLargeFileAsync(objectKey, destinationPath, ct);

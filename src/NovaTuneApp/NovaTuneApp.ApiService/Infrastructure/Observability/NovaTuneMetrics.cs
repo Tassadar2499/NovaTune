@@ -240,6 +240,27 @@ public static class NovaTuneMetrics
         description: "Number of cache misses");
 
     // ============================================================================
+    // Streaming Metrics (Stage 4)
+    // ============================================================================
+
+    /// <summary>
+    /// Counter for stream URL requests.
+    /// Tags: status (cache_hit, cache_miss, error)
+    /// </summary>
+    public static readonly Counter<long> StreamUrlRequestsTotal = Meter.CreateCounter<long>(
+        name: "novatune.stream_url_requests_total",
+        unit: "{requests}",
+        description: "Total number of stream URL requests");
+
+    /// <summary>
+    /// Histogram for stream URL generation duration.
+    /// </summary>
+    public static readonly Histogram<double> StreamUrlDuration = Meter.CreateHistogram<double>(
+        name: "novatune.stream_url_duration_ms",
+        unit: "ms",
+        description: "Stream URL generation duration in milliseconds");
+
+    // ============================================================================
     // Messaging Metrics
     // ============================================================================
 
@@ -422,6 +443,18 @@ public static class NovaTuneMetrics
     {
         var tags = new TagList { { "event_type", eventType } };
         OutboxFailedTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records a stream URL request.
+    /// </summary>
+    /// <param name="status">Request status (cache_hit, cache_miss, error).</param>
+    /// <param name="durationMs">Request duration in milliseconds.</param>
+    public static void RecordStreamUrlRequest(string status, double durationMs)
+    {
+        var tags = new TagList { { "status", status } };
+        StreamUrlRequestsTotal.Add(1, tags);
+        StreamUrlDuration.Record(durationMs);
     }
 
     /// <summary>
