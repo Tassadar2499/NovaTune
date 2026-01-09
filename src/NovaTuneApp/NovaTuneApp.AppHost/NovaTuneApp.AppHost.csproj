@@ -11,6 +11,7 @@
     <ItemGroup>
         <ProjectReference Include="..\NovaTuneApp.ApiService\NovaTuneApp.ApiService.csproj"/>
         <ProjectReference Include="..\NovaTuneApp.Web\NovaTuneApp.Web.csproj"/>
+        <ProjectReference Include="..\NovaTuneApp.Workers.UploadIngestor\NovaTuneApp.Workers.UploadIngestor.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

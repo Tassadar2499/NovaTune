@@ -1,5 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaTuneApp.AppHost", "NovaTuneApp.AppHost\NovaTuneApp.AppHost.csproj", "{1401DAB1-AE9F-4849-A4FA-3E02B412036C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaTuneApp.ServiceDefaults", "NovaTuneApp.ServiceDefaults\NovaTuneApp.ServiceDefaults.csproj", "{D60CF82B-8AE5-4065-B6E8-311DE473E7EA}"
@@ -19,6 +20,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "integration_tests", "integration_tests", "{C2D3E4F5-A6B7-4C5D-0E1F-2A3B4C5D6E7F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "component_tests", "component_tests", "{D3E4F5A6-B7C8-4D5E-1F2A-3B4C5D6E7F8A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaTuneApp.Workers.UploadIngestor", "NovaTuneApp.Workers.UploadIngestor\NovaTuneApp.Workers.UploadIngestor.csproj", "{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -102,6 +105,18 @@ Global
 		{8045B395-3302-4A65-A5C5-4E00C44BF670}.Release|x64.Build.0 = Release|Any CPU
 		{8045B395-3302-4A65-A5C5-4E00C44BF670}.Release|x86.ActiveCfg = Release|Any CPU
 		{8045B395-3302-4A65-A5C5-4E00C44BF670}.Release|x86.Build.0 = Release|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Debug|x64.Build.0 = Debug|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Debug|x86.Build.0 = Debug|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Release|x64.ActiveCfg = Release|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Release|x64.Build.0 = Release|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Release|x86.ActiveCfg = Release|Any CPU
+		{69D20AF5-03F0-4EC8-8ED0-22162B76EA40}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

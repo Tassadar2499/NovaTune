@@ -99,6 +99,17 @@ else
         .WaitFor(storage)
         .WithHttpHealthCheck("/health");
 
+    // Upload Ingestor Worker - consumes MinIO events and creates Track records
+    builder.AddProject<Projects.NovaTuneApp_Workers_UploadIngestor>("upload-ingestor")
+        .WithReference(messaging)
+        .WaitFor(messaging)
+        .WithReference(database)
+        .WaitFor(database)
+        .WithReference(storage.GetEndpoint("api"))
+        .WaitFor(storage)
+        .WithEnvironment("NovaTune__TopicPrefix", "dev")
+        .WithEnvironment("NovaTune__Minio__EnvironmentPrefix", "dev");
+
     builder.AddProject<Projects.NovaTuneApp_Web>("webfrontend")
         .WithExternalHttpEndpoints()
         .WithHttpHealthCheck("/health")

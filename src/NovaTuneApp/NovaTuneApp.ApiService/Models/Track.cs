@@ -22,6 +22,17 @@ public sealed class Track
     [Required]
     public string ObjectKey { get; set; } = string.Empty;
 
+    /// <summary>
+    /// File size in bytes.
+    /// </summary>
+    public long FileSizeBytes { get; set; }
+
+    /// <summary>
+    /// MIME type of the audio file.
+    /// </summary>
+    [MaxLength(64)]
+    public string MimeType { get; set; } = string.Empty;
+
     [MaxLength(64)]
     public string? Checksum { get; set; }
 

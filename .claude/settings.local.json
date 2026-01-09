@@ -10,7 +10,9 @@
       "Bash(dotnet test:*)",
       "Bash(dotnet add:*)",
       "Bash(cat:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(find:*)",
+      "Bash(dotnet sln:*)"
     ]
   }
 }
