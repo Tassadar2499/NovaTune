@@ -4,8 +4,21 @@ namespace NovaTuneApp.ApiService.Models;
 
 public sealed class Track
 {
+    /// <summary>
+    /// RavenDB document ID (e.g., "Tracks/{TrackId}").
+    /// </summary>
     public string Id { get; init; } = string.Empty;
 
+    /// <summary>
+    /// External track identifier (ULID).
+    /// </summary>
+    [Required]
+    [MaxLength(26)]
+    public string TrackId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// User identifier (ULID).
+    /// </summary>
     [Required]
     public string UserId { get; init; } = string.Empty;
 

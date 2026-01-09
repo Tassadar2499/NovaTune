@@ -10,8 +10,9 @@ public class TrackTests
     {
         var track = new Track
         {
-            Id = "tracks/1",
-            UserId = "users/1",
+            Id = "Tracks/01HXYZ123456789ABCDEFGHJ",
+            TrackId = "01HXYZ123456789ABCDEFGHJ",
+            UserId = "01HXYZ987654321ABCDEFGHJ",
             Title = "Test Track",
             ObjectKey = "audio/test.mp3",
             CreatedAt = DateTimeOffset.UtcNow
@@ -26,8 +27,9 @@ public class TrackTests
     {
         var track = new Track
         {
-            Id = "tracks/1",
-            UserId = "users/1",
+            Id = "Tracks/01HXYZ123456789ABCDEFGHJ",
+            TrackId = "01HXYZ123456789ABCDEFGHJ",
+            UserId = "01HXYZ987654321ABCDEFGHJ",
             Title = "",
             ObjectKey = "audio/test.mp3"
         };
@@ -60,8 +62,9 @@ public class TrackTests
 
         var track = new Track
         {
-            Id = "tracks/1",
-            UserId = "users/1",
+            Id = "Tracks/01HXYZ123456789ABCDEFGHJ",
+            TrackId = "01HXYZ123456789ABCDEFGHJ",
+            UserId = "01HXYZ987654321ABCDEFGHJ",
             Title = "Test Track",
             ObjectKey = "audio/test.mp3",
             Metadata = metadata

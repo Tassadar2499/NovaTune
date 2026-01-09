@@ -71,15 +71,13 @@ public class WaveformService : IWaveformService
                 // Read raw samples and compute peaks
                 var peaks = await ComputePeaksAsync(tempRawFile, peakCount, cts.Token);
 
-                // Write JSON output
+                // Write JSON output per 04-waveform-generation.md schema
                 var waveformData = new WaveformData
                 {
                     Version = 1,
                     SampleRate = 8000,
-                    SamplesPerPixel = (int)Math.Ceiling((double)new FileInfo(tempRawFile).Length / sizeof(float) / peakCount),
-                    Bits = 32,
-                    Length = peaks.Length,
-                    Data = peaks
+                    SamplesPerPeak = (int)Math.Ceiling((double)new FileInfo(tempRawFile).Length / sizeof(float) / peakCount),
+                    Peaks = peaks
                 };
 
                 var json = JsonSerializer.Serialize(waveformData, new JsonSerializerOptions
@@ -88,9 +86,31 @@ public class WaveformService : IWaveformService
                     WriteIndented = false
                 });
 
+                // Enforce 100KB max size limit
+                const int maxSizeBytes = 100 * 1024;
+                if (json.Length > maxSizeBytes)
+                {
+                    _logger.LogWarning(
+                        "Waveform JSON exceeds {MaxSize}KB limit ({ActualSize} bytes), truncating peaks",
+                        100, json.Length);
+
+                    // Reduce peaks to fit within limit (estimate ~10 chars per peak value)
+                    var targetPeakCount = (maxSizeBytes - 100) / 10; // Leave room for JSON structure
+                    var step = Math.Max(1, peaks.Length / targetPeakCount);
+                    var truncatedPeaks = peaks.Where((_, i) => i % step == 0).ToArray();
+
+                    waveformData = waveformData with { Peaks = truncatedPeaks };
+                    json = JsonSerializer.Serialize(waveformData, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        WriteIndented = false
+                    });
+                }
+
                 await File.WriteAllTextAsync(outputPath, json, cts.Token);
 
-                _logger.LogDebug("Generated waveform with {PeakCount} peaks to {OutputPath}", peaks.Length, outputPath);
+                _logger.LogDebug("Generated waveform with {PeakCount} peaks ({Size} bytes) to {OutputPath}",
+                    waveformData.Peaks.Length, json.Length, outputPath);
             }
             finally
             {
@@ -171,13 +191,14 @@ public class WaveformService : IWaveformService
         return peaks.ToArray();
     }
 
+    /// <summary>
+    /// Waveform JSON schema per 04-waveform-generation.md.
+    /// </summary>
     private record WaveformData
     {
         public int Version { get; init; }
         public int SampleRate { get; init; }
-        public int SamplesPerPixel { get; init; }
-        public int Bits { get; init; }
-        public int Length { get; init; }
-        public float[] Data { get; init; } = Array.Empty<float>();
+        public int SamplesPerPeak { get; init; }
+        public float[] Peaks { get; init; } = [];
     }
 }

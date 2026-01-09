@@ -1,11 +1,15 @@
+using System.Text.Json;
 using Confluent.Kafka;
 using KafkaFlow;
+using KafkaFlow.Producers;
+using KafkaFlow.Retry;
 using KafkaFlow.Serializer;
 using Microsoft.Extensions.Options;
 using Minio;
 using NovaTuneApp.ApiService.Infrastructure.Configuration;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Messages;
 using NovaTuneApp.Workers.AudioProcessor.Handlers;
+using NovaTuneApp.Workers.AudioProcessor.Middleware;
 using NovaTuneApp.Workers.AudioProcessor.Services;
 using Raven.Client.Documents;
 using Serilog;
@@ -138,11 +142,22 @@ try
     // ============================================================================
     // KafkaFlow Consumer (Req 3.2 - Consume AudioUploadedEvent)
     // ============================================================================
+    var dlqTopic = $"{topicPrefix}-audio-events-dlq";
+
     builder.Services.AddKafka(kafka => kafka
         .UseMicrosoftLog()
         .AddCluster(cluster =>
         {
             cluster.WithBrokers([bootstrapServers]);
+
+            // DLQ Producer (06-error-handling.md)
+            cluster.CreateTopicIfNotExists(dlqTopic, numberOfPartitions: 1, replicationFactor: 1);
+            cluster.AddProducer(
+                "dlq-producer",
+                producer => producer
+                    .DefaultTopic(dlqTopic)
+                    .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
+            );
 
             // Audio events consumer (NF-2.1 - bounded concurrency)
             cluster.AddConsumer(consumer => consumer
@@ -162,11 +177,28 @@ try
                 })
                 .AddMiddlewares(m => m
                     .AddDeserializer<JsonCoreDeserializer>()
-                    .AddTypedHandlers(h => h.AddHandler<AudioUploadedHandler>())
+                    // Retry middleware (06-error-handling.md): 3 retries with exponential backoff
+                    .RetrySimple(
+                        (config) => config
+                            .Handle<Exception>()
+                            .TryTimes(3)
+                            .WithTimeBetweenTriesPlan(retryCount =>
+                                TimeSpan.FromSeconds(Math.Pow(2, retryCount))) // 2s, 4s, 8s
+                            .ShouldPauseConsumer(false)
+                    )
+                    // DLQ middleware - catches messages that failed all retries
+                    .Add<DlqMiddleware>()
+                    .AddTypedHandlers(h => h
+                        .AddHandler<AudioUploadedHandler>()
+                        .WithHandlerLifetime(InstanceLifetime.Scoped)
+                    )
                 )
             );
         })
     );
+
+    // DLQ handler service for publishing failed messages
+    builder.Services.AddSingleton<IDlqHandler, DlqHandler>();
 
     // ============================================================================
     // Services (02-processing-pipeline.md)

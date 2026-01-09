@@ -112,7 +112,7 @@ public class AudioProcessorService : IAudioProcessorService
 
             // Step 5: Generate waveform using ffmpeg
             _logger.LogDebug("Generating waveform for TrackId={TrackId}", @event.TrackId);
-            var waveformFileName = $"{@event.TrackId}.waveform.json";
+            const string waveformFileName = "peaks.json";
             var tempWaveformPath = _tempFileManager.GetTempFilePath(@event.TrackId, waveformFileName);
 
             await _waveformService.GenerateAsync(
@@ -121,8 +121,8 @@ public class AudioProcessorService : IAudioProcessorService
                 _options.WaveformPeakCount,
                 ct);
 
-            // Upload waveform to MinIO
-            var waveformObjectKey = $"waveforms/{@event.TrackId}/{waveformFileName}";
+            // Upload waveform to MinIO per 04-waveform-generation.md: waveforms/{userId}/{trackId}/peaks.json
+            var waveformObjectKey = $"waveforms/{@event.UserId}/{@event.TrackId}/{waveformFileName}";
             await _storageService.UploadFromFileAsync(
                 waveformObjectKey,
                 tempWaveformPath,
@@ -207,6 +207,13 @@ public class AudioProcessorService : IAudioProcessorService
         }
     }
 
+    // Supported audio codecs per NF-2.4
+    private static readonly HashSet<string> SupportedCodecs = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "mp3", "aac", "flac", "vorbis", "opus", "alac",
+        "wav", "pcm_s16le", "pcm_s24le", "pcm_s32le", "pcm_f32le"
+    };
+
     private ValidationResult ValidateMetadata(AudioMetadata metadata)
     {
         // Duration validation
@@ -230,6 +237,12 @@ public class AudioProcessorService : IAudioProcessorService
         if (metadata.Channels < 1 || metadata.Channels > 8)
         {
             return ValidationResult.Failed(ProcessingFailureReason.InvalidChannels);
+        }
+
+        // Codec validation - must be a recognized audio codec
+        if (string.IsNullOrEmpty(metadata.Codec) || !SupportedCodecs.Contains(metadata.Codec))
+        {
+            return ValidationResult.Failed(ProcessingFailureReason.UnsupportedCodec);
         }
 
         return ValidationResult.Success();
