@@ -25,6 +25,23 @@ public interface IStorageService
         long contentLength,
         TimeSpan expiry,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Downloads an object to a local file using streaming IO (NF-2.4).
+    /// </summary>
+    /// <param name="objectKey">The storage object key.</param>
+    /// <param name="destinationPath">Local file path to write to.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DownloadToFileAsync(string objectKey, string destinationPath, CancellationToken ct = default);
+
+    /// <summary>
+    /// Uploads a local file to storage using streaming IO (NF-2.4).
+    /// </summary>
+    /// <param name="objectKey">The storage object key.</param>
+    /// <param name="sourcePath">Local file path to read from.</param>
+    /// <param name="contentType">Content type of the file.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task UploadFromFileAsync(string objectKey, string sourcePath, string contentType, CancellationToken ct = default);
 }
 
 /// <summary>

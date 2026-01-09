@@ -74,4 +74,61 @@ public class StorageService : IStorageService
             return new PresignedUploadResult(url, expiresAt);
         }, ct);
     }
+
+    /// <summary>
+    /// Downloads an object to a local file using streaming IO (NF-2.4).
+    /// </summary>
+    public async Task DownloadToFileAsync(string objectKey, string destinationPath, CancellationToken ct = default)
+    {
+        await _generalPipeline.ExecuteAsync(async token =>
+        {
+            _logger.LogDebug("Downloading {ObjectKey} to {DestinationPath}", objectKey, destinationPath);
+
+            var args = new GetObjectArgs()
+                .WithBucket(_audioBucket)
+                .WithObject(objectKey)
+                .WithCallbackStream(async (stream, cancellationToken) =>
+                {
+                    // Use streaming IO to avoid unbounded memory (NF-2.4)
+                    await using var fileStream = new FileStream(
+                        destinationPath,
+                        FileMode.Create,
+                        FileAccess.Write,
+                        FileShare.None,
+                        bufferSize: 81920, // 80KB buffer
+                        useAsync: true);
+
+                    await stream.CopyToAsync(fileStream, cancellationToken);
+                });
+
+            await _minioClient.GetObjectAsync(args, token);
+
+            _logger.LogDebug("Downloaded {ObjectKey} to {DestinationPath}", objectKey, destinationPath);
+        }, ct);
+    }
+
+    /// <summary>
+    /// Uploads a local file to storage using streaming IO (NF-2.4).
+    /// </summary>
+    public async Task UploadFromFileAsync(string objectKey, string sourcePath, string contentType, CancellationToken ct = default)
+    {
+        await _generalPipeline.ExecuteAsync(async token =>
+        {
+            var fileInfo = new FileInfo(sourcePath);
+            _logger.LogDebug(
+                "Uploading {SourcePath} ({Size} bytes) to {ObjectKey}",
+                sourcePath, fileInfo.Length, objectKey);
+
+            var args = new PutObjectArgs()
+                .WithBucket(_audioBucket)
+                .WithObject(objectKey)
+                .WithFileName(sourcePath)
+                .WithContentType(contentType)
+                .WithObjectSize(fileInfo.Length);
+
+            await _minioClient.PutObjectAsync(args, token);
+
+            _logger.LogDebug("Uploaded {SourcePath} to {ObjectKey}", sourcePath, objectKey);
+        }, ct);
+    }
 }

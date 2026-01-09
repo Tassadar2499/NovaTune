@@ -48,10 +48,12 @@ public class TrackTests
     {
         var metadata = new AudioMetadata
         {
-            Format = "mp3",
-            Bitrate = 320000,
+            Duration = TimeSpan.FromMinutes(3),
             SampleRate = 44100,
             Channels = 2,
+            BitRate = 320000,
+            Codec = "mp3",
+            CodecLongName = "MP3 (MPEG audio layer 3)",
             FileSizeBytes = 5_000_000,
             MimeType = "audio/mpeg"
         };
@@ -66,8 +68,9 @@ public class TrackTests
         };
 
         track.Metadata.ShouldNotBeNull();
-        track.Metadata.Format.ShouldBe("mp3");
-        track.Metadata.Bitrate.ShouldBe(320000);
+        track.Metadata.Codec.ShouldBe("mp3");
+        track.Metadata.BitRate.ShouldBe(320000);
+        track.Metadata.Duration.ShouldBe(TimeSpan.FromMinutes(3));
     }
 
     private static List<ValidationResult> ValidateModel(object model)

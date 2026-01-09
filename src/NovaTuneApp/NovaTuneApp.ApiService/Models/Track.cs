@@ -38,6 +38,25 @@ public sealed class Track
 
     public AudioMetadata? Metadata { get; set; }
     public TrackStatus Status { get; set; } = TrackStatus.Processing;
+
+    /// <summary>
+    /// MinIO object key for waveform data (JSON peaks).
+    /// </summary>
+    [MaxLength(512)]
+    public string? WaveformObjectKey { get; set; }
+
+    /// <summary>
+    /// Failure reason code when Status = Failed.
+    /// See <see cref="ProcessingFailureReason"/> for valid values.
+    /// </summary>
+    [MaxLength(64)]
+    public string? FailureReason { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Timestamp when processing completed (Status changed to Ready or Failed).
+    /// </summary>
+    public DateTimeOffset? ProcessedAt { get; set; }
 }

@@ -169,10 +169,20 @@ try
     );
 
     // ============================================================================
-    // Services
+    // Services (02-processing-pipeline.md)
     // ============================================================================
+
+    // Handler
     builder.Services.AddTransient<AudioUploadedHandler>();
+
+    // Core processing services
     builder.Services.AddScoped<IAudioProcessorService, AudioProcessorService>();
+    builder.Services.AddSingleton<ITempFileManager, TempFileManager>();
+    builder.Services.AddSingleton<IFfprobeService, FfprobeService>();
+    builder.Services.AddSingleton<IWaveformService, WaveformService>();
+
+    // Storage service - requires resilience pipeline provider
+    builder.Services.AddScoped<NovaTuneApp.ApiService.Services.IStorageService, NovaTuneApp.ApiService.Services.StorageService>();
 
     // ============================================================================
     // KafkaFlow Hosted Service
