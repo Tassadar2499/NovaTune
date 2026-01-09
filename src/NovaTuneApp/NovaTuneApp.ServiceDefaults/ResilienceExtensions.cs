@@ -58,6 +58,24 @@ public static class ResilienceExtensions
     public const string StoragePipeline = "storage-resilience";
 
     /// <summary>
+    /// Resilience pipeline for large storage downloads (MinIO/S3).
+    /// Timeout: 5 min, for files up to 500 MB per NF-1.4.
+    /// </summary>
+    public const string StorageDownloadPipeline = "storage-download-resilience";
+
+    /// <summary>
+    /// Resilience pipeline for RavenDB reads in worker context.
+    /// Timeout: 5s per 10-resilience.md.
+    /// </summary>
+    public const string WorkerDatabaseReadPipeline = "worker-database-read-resilience";
+
+    /// <summary>
+    /// Resilience pipeline for RavenDB writes in worker context.
+    /// Timeout: 10s per 10-resilience.md.
+    /// </summary>
+    public const string WorkerDatabaseWritePipeline = "worker-database-write-resilience";
+
+    /// <summary>
     /// Resilience pipeline for messaging operations (Redpanda/Kafka).
     /// Timeout: 2s, 2 retries per NF-1.4 spec.
     /// </summary>
@@ -85,6 +103,15 @@ public static class ResilienceExtensions
 
     /// <summary>Storage operation timeout (10 seconds).</summary>
     public static readonly TimeSpan StorageTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>Storage download timeout (5 minutes) for large files per 10-resilience.md.</summary>
+    public static readonly TimeSpan StorageDownloadTimeout = TimeSpan.FromMinutes(5);
+
+    /// <summary>Worker database read timeout (5 seconds) per 10-resilience.md.</summary>
+    public static readonly TimeSpan WorkerDatabaseReadTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>Worker database write timeout (10 seconds) per 10-resilience.md.</summary>
+    public static readonly TimeSpan WorkerDatabaseWriteTimeout = TimeSpan.FromSeconds(10);
 
     /// <summary>Messaging operation timeout (2 seconds) per NF-1.4.</summary>
     public static readonly TimeSpan MessagingTimeout = TimeSpan.FromSeconds(2);
@@ -165,6 +192,42 @@ public static class ResilienceExtensions
         builder.Services.AddResiliencePipeline(StoragePipeline, pipelineBuilder =>
         {
             ConfigurePipeline(pipelineBuilder, StorageTimeout, StorageConcurrencyLimit, StorageQueueLimit, "Storage");
+        });
+
+        // Storage download pipeline: 5 min timeout for large files (10-resilience.md)
+        builder.Services.AddResiliencePipeline(StorageDownloadPipeline, pipelineBuilder =>
+        {
+            ConfigurePipelineWithRetry(
+                pipelineBuilder,
+                timeout: StorageDownloadTimeout,
+                concurrencyLimit: StorageConcurrencyLimit,
+                queueLimit: StorageQueueLimit,
+                maxRetries: 1,
+                dependencyName: "StorageDownload");
+        });
+
+        // Worker database read pipeline: 5s timeout per 10-resilience.md
+        builder.Services.AddResiliencePipeline(WorkerDatabaseReadPipeline, pipelineBuilder =>
+        {
+            ConfigurePipelineWithRetry(
+                pipelineBuilder,
+                timeout: WorkerDatabaseReadTimeout,
+                concurrencyLimit: DatabaseConcurrencyLimit,
+                queueLimit: DatabaseQueueLimit,
+                maxRetries: 1,
+                dependencyName: "WorkerDatabaseRead");
+        });
+
+        // Worker database write pipeline: 10s timeout per 10-resilience.md
+        builder.Services.AddResiliencePipeline(WorkerDatabaseWritePipeline, pipelineBuilder =>
+        {
+            ConfigurePipelineWithRetry(
+                pipelineBuilder,
+                timeout: WorkerDatabaseWriteTimeout,
+                concurrencyLimit: DatabaseConcurrencyLimit,
+                queueLimit: DatabaseQueueLimit,
+                maxRetries: 0, // Idempotent via message retry
+                dependencyName: "WorkerDatabaseWrite");
         });
 
         // Storage presign pipeline: 5s timeout, 1 retry (NF-1.4)

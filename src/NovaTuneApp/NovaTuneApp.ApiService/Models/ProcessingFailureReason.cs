@@ -60,4 +60,9 @@ public static class ProcessingFailureReason
     /// An unclassified error occurred.
     /// </summary>
     public const string UnknownError = "UNKNOWN_ERROR";
+
+    /// <summary>
+    /// Temp disk space limit exceeded (2 GB per 10-resilience.md).
+    /// </summary>
+    public const string DiskSpaceExceeded = "DISK_SPACE_EXCEEDED";
 }

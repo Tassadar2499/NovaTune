@@ -80,4 +80,106 @@ public class TempFileManager : ITempFileManager
     {
         return Path.Combine(_options.TempDirectory, trackId);
     }
+
+    /// <inheritdoc />
+    public bool HasSufficientDiskSpace()
+    {
+        var currentUsage = GetCurrentDiskUsageBytes();
+        var maxBytes = (long)_options.MaxTempDiskSpaceMb * 1024 * 1024;
+
+        if (currentUsage >= maxBytes)
+        {
+            _logger.LogWarning(
+                "Temp disk space limit exceeded: {CurrentMb} MB used of {MaxMb} MB allowed",
+                currentUsage / (1024 * 1024),
+                _options.MaxTempDiskSpaceMb);
+            return false;
+        }
+
+        // Also check available volume space - ensure at least 500MB free for safety margin
+        var availableSpace = GetAvailableDiskSpaceBytes();
+        const long minimumFreeSpace = 500 * 1024 * 1024; // 500 MB
+
+        if (availableSpace < minimumFreeSpace)
+        {
+            _logger.LogWarning(
+                "Insufficient disk space available: {AvailableMb} MB free (minimum {MinMb} MB required)",
+                availableSpace / (1024 * 1024),
+                minimumFreeSpace / (1024 * 1024));
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public long GetCurrentDiskUsageBytes()
+    {
+        if (!Directory.Exists(_options.TempDirectory))
+        {
+            return 0;
+        }
+
+        try
+        {
+            return new DirectoryInfo(_options.TempDirectory)
+                .EnumerateFiles("*", SearchOption.AllDirectories)
+                .Sum(f => f.Length);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to calculate temp directory size");
+            return 0;
+        }
+    }
+
+    /// <inheritdoc />
+    public long GetAvailableDiskSpaceBytes()
+    {
+        try
+        {
+            var driveInfo = new DriveInfo(Path.GetPathRoot(_options.TempDirectory) ?? "/");
+            return driveInfo.AvailableFreeSpace;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get available disk space");
+            return long.MaxValue; // Assume sufficient space on error
+        }
+    }
+
+    /// <inheritdoc />
+    public void CleanupOrphanedDirectories()
+    {
+        if (!Directory.Exists(_options.TempDirectory))
+        {
+            return;
+        }
+
+        try
+        {
+            var directories = Directory.GetDirectories(_options.TempDirectory);
+            foreach (var dir in directories)
+            {
+                var dirInfo = new DirectoryInfo(dir);
+                // Clean up directories older than 1 hour (abandoned processing)
+                if (dirInfo.LastWriteTimeUtc < DateTime.UtcNow.AddHours(-1))
+                {
+                    try
+                    {
+                        Directory.Delete(dir, recursive: true);
+                        _logger.LogInformation("Cleaned up orphaned temp directory: {Directory}", dir);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to clean up orphaned directory: {Directory}", dir);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to enumerate temp directories for cleanup");
+        }
+    }
 }

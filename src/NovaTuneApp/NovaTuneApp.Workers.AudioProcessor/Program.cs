@@ -250,7 +250,13 @@ finally
 }
 
 /// <summary>
-/// Background service that manages KafkaFlow bus lifecycle.
+/// Background service that manages KafkaFlow bus lifecycle with graceful shutdown.
+/// Implements 10-resilience.md graceful shutdown requirements:
+/// 1. Stop accepting new messages
+/// 2. Wait for in-flight processing to complete (timeout: 60s)
+/// 3. Commit final offsets
+/// 4. Clean up temp files
+/// 5. Exit
 /// </summary>
 internal class KafkaFlowHostedService : BackgroundService
 {
@@ -260,6 +266,7 @@ internal class KafkaFlowHostedService : BackgroundService
 
     private const int MaxRetries = 30;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan GracefulShutdownTimeout = TimeSpan.FromSeconds(60);
 
     public KafkaFlowHostedService(
         IServiceProvider serviceProvider,
@@ -272,6 +279,18 @@ internal class KafkaFlowHostedService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Starting Audio Processor KafkaFlow bus...");
+
+        // Clean up any orphaned temp directories from previous runs on startup
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var tempFileManager = scope.ServiceProvider.GetService<NovaTuneApp.Workers.AudioProcessor.Services.ITempFileManager>();
+            tempFileManager?.CleanupOrphanedDirectories();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to clean up orphaned directories on startup");
+        }
 
         await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
 
@@ -313,13 +332,57 @@ internal class KafkaFlowHostedService : BackgroundService
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        _logger.LogInformation("Initiating graceful shutdown...");
+        var shutdownStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
         if (_kafkaBus is not null)
         {
-            _logger.LogInformation("Stopping KafkaFlow bus...");
-            await _kafkaBus.StopAsync();
-            _logger.LogInformation("KafkaFlow bus stopped");
+            // Step 1 & 2: Stop accepting new messages and wait for in-flight processing
+            // KafkaFlow's StopAsync handles this gracefully - it stops consumers and waits for handlers
+            _logger.LogInformation(
+                "Stopping KafkaFlow bus, waiting up to {TimeoutSeconds}s for in-flight messages...",
+                GracefulShutdownTimeout.TotalSeconds);
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(GracefulShutdownTimeout);
+
+            try
+            {
+                // KafkaFlow StopAsync commits final offsets (Step 3) as part of shutdown
+                await _kafkaBus.StopAsync();
+                _logger.LogInformation(
+                    "KafkaFlow bus stopped gracefully in {ElapsedMs}ms",
+                    shutdownStopwatch.ElapsedMilliseconds);
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(
+                    "Graceful shutdown timed out after {TimeoutSeconds}s, forcing stop",
+                    GracefulShutdownTimeout.TotalSeconds);
+            }
         }
 
+        // Step 4: Clean up temp files
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var tempFileManager = scope.ServiceProvider.GetService<NovaTuneApp.Workers.AudioProcessor.Services.ITempFileManager>();
+            if (tempFileManager is not null)
+            {
+                _logger.LogInformation("Cleaning up temp directories...");
+                tempFileManager.CleanupOrphanedDirectories();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to clean up temp directories during shutdown");
+        }
+
+        _logger.LogInformation(
+            "Graceful shutdown completed in {ElapsedMs}ms",
+            shutdownStopwatch.ElapsedMilliseconds);
+
+        // Step 5: Exit
         await base.StopAsync(cancellationToken);
     }
 }

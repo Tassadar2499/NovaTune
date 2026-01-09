@@ -28,11 +28,21 @@ public interface IStorageService
 
     /// <summary>
     /// Downloads an object to a local file using streaming IO (NF-2.4).
+    /// Uses default 10s timeout.
     /// </summary>
     /// <param name="objectKey">The storage object key.</param>
     /// <param name="destinationPath">Local file path to write to.</param>
     /// <param name="ct">Cancellation token.</param>
     Task DownloadToFileAsync(string objectKey, string destinationPath, CancellationToken ct = default);
+
+    /// <summary>
+    /// Downloads a large object to a local file using streaming IO (NF-2.4).
+    /// Uses 5-minute timeout for files up to 500 MB per 10-resilience.md.
+    /// </summary>
+    /// <param name="objectKey">The storage object key.</param>
+    /// <param name="destinationPath">Local file path to write to.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DownloadLargeFileAsync(string objectKey, string destinationPath, CancellationToken ct = default);
 
     /// <summary>
     /// Uploads a local file to storage using streaming IO (NF-2.4).

@@ -3,6 +3,7 @@ using System.Text.Json;
 using KafkaFlow;
 using KafkaFlow.Producers;
 using NovaTuneApp.ApiService.Infrastructure.Messaging.Messages;
+using NovaTuneApp.ApiService.Infrastructure.Observability;
 
 namespace NovaTuneApp.Workers.AudioProcessor.Services;
 
@@ -52,12 +53,24 @@ public class DlqHandler : IDlqHandler
                 dlqMessage.OriginalKey,
                 dlqMessage);
 
-            _logger.LogWarning(
-                "Published message to DLQ after {RetryCount} retries. Topic={OriginalTopic}, Key={Key}, Error={Error}",
-                retryCount,
-                dlqMessage.OriginalTopic,
-                dlqMessage.OriginalKey,
-                exception.Message);
+            // Record DLQ metric (09-observability.md)
+            NovaTuneMetrics.RecordAudioProcessingDlq();
+
+            // Extract TrackId and CorrelationId from original message if available
+            var trackId = dlqMessage.OriginalKey;
+            var correlationId = "unknown";
+            if (context.Message.Value is AudioUploadedEvent audioEvent)
+            {
+                trackId = audioEvent.TrackId;
+                correlationId = audioEvent.CorrelationId;
+            }
+
+            // Log at Error level per 09-observability.md
+            _logger.LogError(
+                "DLQ message sent for TrackId={TrackId}, ErrorMessage={ErrorMessage}, CorrelationId={CorrelationId}",
+                trackId,
+                exception.Message,
+                correlationId);
         }
         catch (Exception ex)
         {

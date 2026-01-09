@@ -33,4 +33,28 @@ public interface ITempFileManager
     /// Gets the base temp directory path.
     /// </summary>
     string BaseTempDirectory { get; }
+
+    /// <summary>
+    /// Checks if there is sufficient disk space for processing.
+    /// Per 10-resilience.md: fail fast if temp disk space exceeds 2 GB limit.
+    /// </summary>
+    /// <returns>True if sufficient space is available; false otherwise.</returns>
+    bool HasSufficientDiskSpace();
+
+    /// <summary>
+    /// Gets the current disk usage in the temp directory.
+    /// </summary>
+    /// <returns>Current disk usage in bytes.</returns>
+    long GetCurrentDiskUsageBytes();
+
+    /// <summary>
+    /// Gets the available disk space on the temp directory volume.
+    /// </summary>
+    /// <returns>Available disk space in bytes.</returns>
+    long GetAvailableDiskSpaceBytes();
+
+    /// <summary>
+    /// Cleans up all orphaned temp directories (from crashed/abandoned processing).
+    /// </summary>
+    void CleanupOrphanedDirectories();
 }

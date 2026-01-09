@@ -31,10 +31,12 @@ public class AudioUploadedHandler : IMessageHandler<AudioUploadedEvent>
             ["UserId"] = message.UserId
         });
 
+        // NF-4.5: Redact ObjectKey - only log filename, not full path with user ID
+        var fileName = Path.GetFileName(message.ObjectKey);
         _logger.LogInformation(
-            "Received AudioUploadedEvent for TrackId={TrackId}, ObjectKey={ObjectKey}",
+            "Received AudioUploadedEvent for TrackId={TrackId}, FileName={FileName}",
             message.TrackId,
-            message.ObjectKey);
+            fileName);
 
         // Record metric (NF-4.2)
         NovaTuneMetrics.RecordAudioProcessingStarted();

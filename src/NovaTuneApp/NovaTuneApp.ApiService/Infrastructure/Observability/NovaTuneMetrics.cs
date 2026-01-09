@@ -14,7 +14,13 @@ public static class NovaTuneMetrics
     /// </summary>
     public const string MeterName = "NovaTune.Api";
 
+    /// <summary>
+    /// The name of the activity source for tracing.
+    /// </summary>
+    public const string ActivitySourceName = "NovaTune.AudioProcessor";
+
     private static readonly Meter Meter = new(MeterName, "1.0.0");
+    private static readonly ActivitySource AudioProcessorActivitySource = new(ActivitySourceName, "1.0.0");
 
     // ============================================================================
     // Track Upload Metrics
@@ -134,6 +140,48 @@ public static class NovaTuneMetrics
         name: "novatune.audio_processing_duration_ms",
         unit: "ms",
         description: "Audio processing duration in milliseconds");
+
+    /// <summary>
+    /// Counter for skipped audio processing (already processed or not found).
+    /// Tags: reason (already_processed, not_found)
+    /// </summary>
+    public static readonly Counter<long> AudioProcessingSkippedTotal = Meter.CreateCounter<long>(
+        name: "novatune.audio_processing_skipped_total",
+        unit: "{events}",
+        description: "Total number of audio processing jobs skipped");
+
+    /// <summary>
+    /// Histogram for audio processing stage duration.
+    /// Tags: stage (download, ffprobe, waveform, persist)
+    /// </summary>
+    public static readonly Histogram<double> AudioProcessingStageDuration = Meter.CreateHistogram<double>(
+        name: "novatune.audio_processing_stage_duration_seconds",
+        unit: "s",
+        description: "Audio processing stage duration in seconds");
+
+    /// <summary>
+    /// Counter for audio processing retries.
+    /// </summary>
+    public static readonly Counter<long> AudioProcessingRetriesTotal = Meter.CreateCounter<long>(
+        name: "novatune.audio_processing_retries_total",
+        unit: "{retries}",
+        description: "Total number of audio processing retries");
+
+    /// <summary>
+    /// Counter for messages sent to DLQ.
+    /// </summary>
+    public static readonly Counter<long> AudioProcessingDlqTotal = Meter.CreateCounter<long>(
+        name: "novatune.audio_processing_dlq_total",
+        unit: "{messages}",
+        description: "Total number of messages sent to DLQ");
+
+    /// <summary>
+    /// Histogram for audio track duration (content duration, not processing time).
+    /// </summary>
+    public static readonly Histogram<double> AudioTrackDuration = Meter.CreateHistogram<double>(
+        name: "novatune.audio_track_duration_seconds",
+        unit: "s",
+        description: "Audio track content duration in seconds");
 
     // ============================================================================
     // Outbox Metrics (NF-4.4)
@@ -411,5 +459,95 @@ public static class NovaTuneMetrics
     public static void RecordAudioProcessingDuration(double durationMs)
     {
         AudioProcessingDuration.Record(durationMs);
+    }
+
+    /// <summary>
+    /// Records a skipped audio processing job.
+    /// </summary>
+    public static void RecordAudioProcessingSkipped(string reason)
+    {
+        var tags = new TagList { { "reason", reason } };
+        AudioProcessingSkippedTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records audio processing stage duration.
+    /// </summary>
+    public static void RecordAudioProcessingStageDuration(string stage, double durationSeconds)
+    {
+        var tags = new TagList { { "stage", stage } };
+        AudioProcessingStageDuration.Record(durationSeconds, tags);
+    }
+
+    /// <summary>
+    /// Records an audio processing retry.
+    /// </summary>
+    public static void RecordAudioProcessingRetry()
+    {
+        AudioProcessingRetriesTotal.Add(1);
+    }
+
+    /// <summary>
+    /// Records a message sent to DLQ.
+    /// </summary>
+    public static void RecordAudioProcessingDlq()
+    {
+        AudioProcessingDlqTotal.Add(1);
+    }
+
+    /// <summary>
+    /// Records an audio track duration (content duration).
+    /// </summary>
+    public static void RecordAudioTrackDuration(double durationSeconds)
+    {
+        AudioTrackDuration.Record(durationSeconds);
+    }
+
+    // ============================================================================
+    // Tracing Helpers (NF-4.x)
+    // ============================================================================
+
+    /// <summary>
+    /// Starts an Activity span for audio download stage.
+    /// </summary>
+    public static Activity? StartAudioDownloadSpan(string trackId, string correlationId)
+    {
+        var activity = AudioProcessorActivitySource.StartActivity("audio.download");
+        activity?.SetTag("track.id", trackId);
+        activity?.SetTag("correlation.id", correlationId);
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an Activity span for ffprobe metadata extraction stage.
+    /// </summary>
+    public static Activity? StartFfprobeSpan(string trackId, string correlationId)
+    {
+        var activity = AudioProcessorActivitySource.StartActivity("audio.ffprobe");
+        activity?.SetTag("track.id", trackId);
+        activity?.SetTag("correlation.id", correlationId);
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an Activity span for waveform generation stage.
+    /// </summary>
+    public static Activity? StartWaveformSpan(string trackId, string correlationId)
+    {
+        var activity = AudioProcessorActivitySource.StartActivity("audio.waveform");
+        activity?.SetTag("track.id", trackId);
+        activity?.SetTag("correlation.id", correlationId);
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an Activity span for RavenDB persist stage.
+    /// </summary>
+    public static Activity? StartPersistSpan(string trackId, string correlationId)
+    {
+        var activity = AudioProcessorActivitySource.StartActivity("audio.persist");
+        activity?.SetTag("track.id", trackId);
+        activity?.SetTag("correlation.id", correlationId);
+        return activity;
     }
 }

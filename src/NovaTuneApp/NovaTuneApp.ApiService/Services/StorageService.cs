@@ -17,6 +17,7 @@ public class StorageService : IStorageService
     private readonly ILogger<StorageService> _logger;
     private readonly ResiliencePipeline _generalPipeline;
     private readonly ResiliencePipeline _presignPipeline;
+    private readonly ResiliencePipeline _downloadPipeline;
     private readonly string _audioBucket;
 
     public StorageService(
@@ -29,6 +30,7 @@ public class StorageService : IStorageService
         _logger = logger;
         _generalPipeline = pipelineProvider.GetPipeline(ResilienceExtensions.StoragePipeline);
         _presignPipeline = pipelineProvider.GetPipeline(ResilienceExtensions.StoragePresignPipeline);
+        _downloadPipeline = pipelineProvider.GetPipeline(ResilienceExtensions.StorageDownloadPipeline);
         _audioBucket = options.Value.Minio.AudioBucketName;
     }
 
@@ -104,6 +106,39 @@ public class StorageService : IStorageService
             await _minioClient.GetObjectAsync(args, token);
 
             _logger.LogDebug("Downloaded {ObjectKey} to {DestinationPath}", objectKey, destinationPath);
+        }, ct);
+    }
+
+    /// <summary>
+    /// Downloads a large object to a local file using streaming IO (NF-2.4).
+    /// Uses 5-minute timeout for files up to 500 MB per 10-resilience.md.
+    /// </summary>
+    public async Task DownloadLargeFileAsync(string objectKey, string destinationPath, CancellationToken ct = default)
+    {
+        await _downloadPipeline.ExecuteAsync(async token =>
+        {
+            _logger.LogDebug("Downloading large file {ObjectKey} to {DestinationPath}", objectKey, destinationPath);
+
+            var args = new GetObjectArgs()
+                .WithBucket(_audioBucket)
+                .WithObject(objectKey)
+                .WithCallbackStream(async (stream, cancellationToken) =>
+                {
+                    // Use streaming IO to avoid unbounded memory (NF-2.4)
+                    await using var fileStream = new FileStream(
+                        destinationPath,
+                        FileMode.Create,
+                        FileAccess.Write,
+                        FileShare.None,
+                        bufferSize: 81920, // 80KB buffer
+                        useAsync: true);
+
+                    await stream.CopyToAsync(fileStream, cancellationToken);
+                });
+
+            await _minioClient.GetObjectAsync(args, token);
+
+            _logger.LogDebug("Downloaded large file {ObjectKey} to {DestinationPath}", objectKey, destinationPath);
         }, ct);
     }
 

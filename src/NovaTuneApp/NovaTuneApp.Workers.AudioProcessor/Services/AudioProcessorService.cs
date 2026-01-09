@@ -52,9 +52,24 @@ public class AudioProcessorService : IAudioProcessorService
         var ct = processingTimeout.Token;
 
         _logger.LogInformation(
-            "Starting audio processing for TrackId={TrackId}, CorrelationId={CorrelationId}",
+            "Starting audio processing for TrackId={TrackId}, UserId={UserId}, CorrelationId={CorrelationId}",
             @event.TrackId,
+            @event.UserId,
             @event.CorrelationId);
+
+        // Step 1: Check disk space before processing (10-resilience.md)
+        if (!_tempFileManager.HasSufficientDiskSpace())
+        {
+            _logger.LogWarning(
+                "Processing failed for TrackId={TrackId}, FailureReason={FailureReason}, CorrelationId={CorrelationId}",
+                @event.TrackId,
+                ProcessingFailureReason.DiskSpaceExceeded,
+                @event.CorrelationId);
+
+            NovaTuneMetrics.RecordAudioProcessingFailed(ProcessingFailureReason.DiskSpaceExceeded);
+            // Return false to trigger retry - disk space may become available
+            return false;
+        }
 
         // Create temp directory for this track
         _tempFileManager.CreateTempDirectory(@event.TrackId);
@@ -67,18 +82,22 @@ public class AudioProcessorService : IAudioProcessorService
 
             if (track is null)
             {
-                _logger.LogWarning(
-                    "Track {TrackId} not found in database - orphan event, acknowledging",
-                    @event.TrackId);
+                _logger.LogError(
+                    "Track {TrackId} not found in database, CorrelationId={CorrelationId}",
+                    @event.TrackId,
+                    @event.CorrelationId);
+                NovaTuneMetrics.RecordAudioProcessingSkipped("not_found");
                 return true; // Ack the orphan message
             }
 
             if (track.Status != TrackStatus.Processing)
             {
                 _logger.LogWarning(
-                    "Track {TrackId} is in status {Status}, not Processing - already processed, acknowledging",
+                    "Track {TrackId} is in status {Status}, not Processing - skipping, CorrelationId={CorrelationId}",
                     @event.TrackId,
-                    track.Status);
+                    track.Status,
+                    @event.CorrelationId);
+                NovaTuneMetrics.RecordAudioProcessingSkipped("already_processed");
                 return true; // Already processed
             }
 
@@ -86,40 +105,77 @@ public class AudioProcessorService : IAudioProcessorService
             var audioFileName = Path.GetFileName(@event.ObjectKey);
             var tempAudioPath = _tempFileManager.GetTempFilePath(@event.TrackId, audioFileName);
 
+            // NF-4.5: Redact ObjectKey - only log filename, not full path with user ID
             _logger.LogDebug(
-                "Downloading audio for TrackId={TrackId} from {ObjectKey} to {TempPath}",
-                @event.TrackId, @event.ObjectKey, tempAudioPath);
+                "Downloading audio for TrackId={TrackId}, FileName={FileName}",
+                @event.TrackId, audioFileName);
 
-            await _storageService.DownloadToFileAsync(@event.ObjectKey, tempAudioPath, ct);
+            var downloadStopwatch = Stopwatch.StartNew();
+            using (var downloadSpan = NovaTuneMetrics.StartAudioDownloadSpan(@event.TrackId, @event.CorrelationId))
+            {
+                // Use 5-minute timeout for large audio files up to 500 MB (10-resilience.md)
+                await _storageService.DownloadLargeFileAsync(@event.ObjectKey, tempAudioPath, ct);
+            }
+            downloadStopwatch.Stop();
+            NovaTuneMetrics.RecordAudioProcessingStageDuration("download", downloadStopwatch.Elapsed.TotalSeconds);
 
             // Step 4: Run ffprobe to extract metadata
-            _logger.LogDebug("Extracting metadata for TrackId={TrackId}", @event.TrackId);
-            var metadata = await _ffprobeService.ExtractMetadataAsync(tempAudioPath, ct);
+            AudioMetadata metadata;
+            var ffprobeStopwatch = Stopwatch.StartNew();
+            using (var ffprobeSpan = NovaTuneMetrics.StartFfprobeSpan(@event.TrackId, @event.CorrelationId))
+            {
+                metadata = await _ffprobeService.ExtractMetadataAsync(tempAudioPath, ct);
+            }
+            ffprobeStopwatch.Stop();
+            NovaTuneMetrics.RecordAudioProcessingStageDuration("ffprobe", ffprobeStopwatch.Elapsed.TotalSeconds);
+
+            // Log metadata extraction per 09-observability.md
+            _logger.LogDebug(
+                "Metadata extracted for TrackId={TrackId}, Duration={Duration}, Codec={Codec}, SampleRate={SampleRate}",
+                @event.TrackId,
+                metadata.Duration,
+                metadata.Codec,
+                metadata.SampleRate);
 
             // Validate metadata
             var validationResult = ValidateMetadata(metadata);
             if (!validationResult.IsValid)
             {
                 _logger.LogWarning(
-                    "Metadata validation failed for TrackId={TrackId}: {Reason}",
-                    @event.TrackId, validationResult.FailureReason);
+                    "Processing failed for TrackId={TrackId}, FailureReason={FailureReason}, CorrelationId={CorrelationId}",
+                    @event.TrackId,
+                    validationResult.FailureReason,
+                    @event.CorrelationId);
 
                 await MarkTrackFailedAsync(session, track, validationResult.FailureReason!, ct);
                 stopwatch.Stop();
                 NovaTuneMetrics.RecordAudioProcessingDuration(stopwatch.ElapsedMilliseconds);
+                NovaTuneMetrics.RecordAudioProcessingFailed(validationResult.FailureReason);
                 return true; // Ack - don't retry validation failures
             }
 
             // Step 5: Generate waveform using ffmpeg
-            _logger.LogDebug("Generating waveform for TrackId={TrackId}", @event.TrackId);
             const string waveformFileName = "peaks.json";
             var tempWaveformPath = _tempFileManager.GetTempFilePath(@event.TrackId, waveformFileName);
 
-            await _waveformService.GenerateAsync(
-                tempAudioPath,
-                tempWaveformPath,
-                _options.WaveformPeakCount,
-                ct);
+            var waveformStopwatch = Stopwatch.StartNew();
+            using (var waveformSpan = NovaTuneMetrics.StartWaveformSpan(@event.TrackId, @event.CorrelationId))
+            {
+                await _waveformService.GenerateAsync(
+                    tempAudioPath,
+                    tempWaveformPath,
+                    _options.WaveformPeakCount,
+                    ct);
+            }
+            waveformStopwatch.Stop();
+            NovaTuneMetrics.RecordAudioProcessingStageDuration("waveform", waveformStopwatch.Elapsed.TotalSeconds);
+
+            // Get waveform file size for logging
+            var waveformSize = new FileInfo(tempWaveformPath).Length;
+            _logger.LogDebug(
+                "Waveform generated for TrackId={TrackId}, WaveformSize={WaveformSize}",
+                @event.TrackId,
+                waveformSize);
 
             // Upload waveform to MinIO per 04-waveform-generation.md: waveforms/{userId}/{trackId}/peaks.json
             var waveformObjectKey = $"waveforms/{@event.UserId}/{@event.TrackId}/{waveformFileName}";
@@ -128,10 +184,6 @@ public class AudioProcessorService : IAudioProcessorService
                 tempWaveformPath,
                 "application/json",
                 ct);
-
-            _logger.LogDebug(
-                "Uploaded waveform for TrackId={TrackId} to {ObjectKey}",
-                @event.TrackId, waveformObjectKey);
 
             // Step 6: Update Track in RavenDB with optimistic concurrency
             track.Metadata = metadata;
@@ -144,60 +196,89 @@ public class AudioProcessorService : IAudioProcessorService
             // Enable optimistic concurrency for this track
             session.Advanced.UseOptimisticConcurrency = true;
 
-            try
+            var persistStopwatch = Stopwatch.StartNew();
+            using (var persistSpan = NovaTuneMetrics.StartPersistSpan(@event.TrackId, @event.CorrelationId))
             {
-                await session.SaveChangesAsync(ct);
+                try
+                {
+                    await session.SaveChangesAsync(ct);
+                }
+                catch (ConcurrencyException ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Concurrency conflict updating TrackId={TrackId} - will retry",
+                        @event.TrackId);
+                    throw; // Retry the message
+                }
             }
-            catch (ConcurrencyException ex)
-            {
-                _logger.LogWarning(
-                    ex,
-                    "Concurrency conflict updating TrackId={TrackId} - will retry",
-                    @event.TrackId);
-                throw; // Retry the message
-            }
+            persistStopwatch.Stop();
+            NovaTuneMetrics.RecordAudioProcessingStageDuration("persist", persistStopwatch.Elapsed.TotalSeconds);
 
             stopwatch.Stop();
             NovaTuneMetrics.RecordAudioProcessingDuration(stopwatch.ElapsedMilliseconds);
 
+            // Record audio track content duration
+            NovaTuneMetrics.RecordAudioTrackDuration(metadata.Duration.TotalSeconds);
+
             _logger.LogInformation(
-                "Audio processing completed for TrackId={TrackId} in {ElapsedMs}ms",
+                "Audio processing completed for TrackId={TrackId}, DurationMs={DurationMs}, CorrelationId={CorrelationId}",
                 @event.TrackId,
-                stopwatch.ElapsedMilliseconds);
+                stopwatch.ElapsedMilliseconds,
+                @event.CorrelationId);
 
             return true;
         }
         catch (OperationCanceledException) when (processingTimeout.IsCancellationRequested)
         {
             _logger.LogWarning(
-                "Audio processing timed out for TrackId={TrackId} after {Timeout} minutes",
+                "Processing failed for TrackId={TrackId}, FailureReason={FailureReason}, CorrelationId={CorrelationId}",
                 @event.TrackId,
-                _options.TotalProcessingTimeoutMinutes);
+                ProcessingFailureReason.ProcessingTimeout,
+                @event.CorrelationId);
 
             await MarkTrackFailedAsync(@event.TrackId, ProcessingFailureReason.ProcessingTimeout);
             stopwatch.Stop();
             NovaTuneMetrics.RecordAudioProcessingDuration(stopwatch.ElapsedMilliseconds);
+            NovaTuneMetrics.RecordAudioProcessingFailed(ProcessingFailureReason.ProcessingTimeout);
             return false;
         }
         catch (FfprobeException ex)
         {
-            _logger.LogError(ex, "ffprobe failed for TrackId={TrackId}", @event.TrackId);
+            _logger.LogWarning(
+                ex,
+                "Processing failed for TrackId={TrackId}, FailureReason={FailureReason}, CorrelationId={CorrelationId}",
+                @event.TrackId,
+                ex.FailureReason,
+                @event.CorrelationId);
             await MarkTrackFailedAsync(@event.TrackId, ex.FailureReason);
             stopwatch.Stop();
             NovaTuneMetrics.RecordAudioProcessingDuration(stopwatch.ElapsedMilliseconds);
+            NovaTuneMetrics.RecordAudioProcessingFailed(ex.FailureReason);
             return true; // Don't retry ffprobe failures
         }
         catch (WaveformException ex)
         {
-            _logger.LogError(ex, "Waveform generation failed for TrackId={TrackId}", @event.TrackId);
+            _logger.LogWarning(
+                ex,
+                "Processing failed for TrackId={TrackId}, FailureReason={FailureReason}, CorrelationId={CorrelationId}",
+                @event.TrackId,
+                ex.FailureReason,
+                @event.CorrelationId);
             await MarkTrackFailedAsync(@event.TrackId, ex.FailureReason);
             stopwatch.Stop();
             NovaTuneMetrics.RecordAudioProcessingDuration(stopwatch.ElapsedMilliseconds);
+            NovaTuneMetrics.RecordAudioProcessingFailed(ex.FailureReason);
             return true; // Don't retry waveform failures
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Audio processing failed for TrackId={TrackId}", @event.TrackId);
+            _logger.LogWarning(
+                ex,
+                "Processing failed for TrackId={TrackId}, FailureReason={FailureReason}, CorrelationId={CorrelationId}",
+                @event.TrackId,
+                "transient_error",
+                @event.CorrelationId);
             throw; // Will be retried or sent to DLQ by handler
         }
         finally
