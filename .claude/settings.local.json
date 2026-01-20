@@ -14,7 +14,9 @@
       "Bash(find:*)",
       "Bash(dotnet sln:*)",
       "Skill(claude-code-reflection-skills:optimizing-claude-code)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Skill(claude-code-reflection-skills:claude-mcp-manager)",
+      "Bash(claude mcp:*)"
     ]
   }
 }
