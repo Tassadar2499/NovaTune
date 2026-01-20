@@ -6,9 +6,10 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
-    <!-- Allow integration tests to access internal Program class -->
+    <!-- Allow tests to access internal types -->
     <ItemGroup>
         <InternalsVisibleTo Include="NovaTuneApp.IntegrationTests" />
+        <InternalsVisibleTo Include="NovaTune.UnitTests" />
     </ItemGroup>
 
     <ItemGroup>
