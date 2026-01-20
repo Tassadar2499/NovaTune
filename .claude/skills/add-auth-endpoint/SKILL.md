@@ -1,3 +1,6 @@
+---
+description: Add authentication endpoints (register, login, refresh, logout) to NovaTune
+---
 # Add Authentication Endpoint Skill
 
 Add authentication endpoints (register, login, refresh, logout) to NovaTune.

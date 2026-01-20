@@ -1,3 +1,6 @@
+---
+description: Build, run, and test the NovaTune .NET Aspire application
+---
 # Build and Run Skill
 
 Build, run, and manage the NovaTune .NET Aspire application.

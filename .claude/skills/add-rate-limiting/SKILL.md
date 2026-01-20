@@ -1,3 +1,6 @@
+---
+description: Configure rate limiting policies for API endpoints with sliding window limits
+---
 # Add Rate Limiting Skill
 
 Configure rate limiting for NovaTune API endpoints.

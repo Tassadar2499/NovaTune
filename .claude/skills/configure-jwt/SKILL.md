@@ -1,3 +1,6 @@
+---
+description: Set up JWT Bearer authentication with token service and authorization policies
+---
 # Configure JWT Authentication Skill
 
 Set up JWT Bearer authentication for NovaTune API.

@@ -12,7 +12,9 @@
       "Bash(cat:*)",
       "Bash(git stash:*)",
       "Bash(find:*)",
-      "Bash(dotnet sln:*)"
+      "Bash(dotnet sln:*)",
+      "Skill(claude-code-reflection-skills:optimizing-claude-code)",
+      "Bash(python:*)"
     ]
   }
 }

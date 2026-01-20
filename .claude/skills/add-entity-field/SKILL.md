@@ -1,3 +1,6 @@
+---
+description: Add a new field to an existing entity/model with related service and endpoint updates
+---
 # Add Entity Field Skill
 
 Add a new field to an existing entity/model in the NovaTune project.

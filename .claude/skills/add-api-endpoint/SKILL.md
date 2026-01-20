@@ -1,3 +1,6 @@
+---
+description: Add a new minimal API endpoint to NovaTune with service, models, and tests
+---
 # Add API Endpoint Skill
 
 Add a new minimal API endpoint to NovaTune.

@@ -1,3 +1,6 @@
+---
+description: Implement ASP.NET Identity user and refresh token stores backed by RavenDB
+---
 # Add RavenDB Identity Store Skill
 
 Implement ASP.NET Identity stores backed by RavenDB for NovaTune.
