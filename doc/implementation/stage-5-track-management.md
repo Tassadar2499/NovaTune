@@ -1232,3 +1232,94 @@ Track state changes are logged with:
 - [ ] Consider bulk delete endpoint for batch operations
 - [ ] Determine if waveform should have separate presigned URL endpoint
 - [ ] Consider adding track download endpoint (separate from streaming)
+
+---
+
+## Claude Skills
+
+The following Claude Code skills are available to assist with implementing Stage 5:
+
+### Planning
+
+| Skill | Description |
+|-------|-------------|
+| `implement-track-management` | Comprehensive implementation plan with phases, files, and validation checklist |
+
+### Core Patterns
+
+| Skill | Use For | Stage 5 Components |
+|-------|---------|-------------------|
+| `add-soft-delete` | Soft-delete with grace period and restoration | DELETE endpoint, restore endpoint, `StatusBeforeDeletion` |
+| `add-cursor-pagination` | Cursor-based pagination for list endpoints | GET /tracks with stable pagination |
+| `add-outbox-pattern` | Transactional event publishing | `TrackDeletedEvent` publishing via outbox |
+
+### Infrastructure
+
+| Skill | Use For | Stage 5 Components |
+|-------|---------|-------------------|
+| `add-api-endpoint` | Minimal API endpoint structure | All track CRUD endpoints |
+| `add-ravendb-index` | RavenDB index creation | `Tracks_ByUserForSearch`, `Tracks_ByScheduledDeletion` |
+| `add-rate-limiting` | Rate limiting policies | `track-list`, `track-update`, `track-delete` policies |
+| `add-background-service` | Polling background services | `PhysicalDeletionService` |
+| `add-kafka-consumer` | KafkaFlow message handlers | `TrackDeletedHandler` |
+| `add-aspire-worker-project` | Worker project creation | `NovaTuneApp.Workers.Lifecycle` |
+| `add-observability` | Metrics, logging, tracing | Track operation metrics and spans |
+
+### Usage
+
+Invoke skills using the Skill tool:
+```
+Skill: implement-track-management   # For planning overview
+Skill: add-soft-delete              # When implementing DELETE/restore
+Skill: add-cursor-pagination        # When implementing GET /tracks
+Skill: add-outbox-pattern           # When implementing event publishing
+```
+
+---
+
+## Claude Agents
+
+The following Claude Code agents are available for autonomous task execution:
+
+### Planning Agent
+
+| Agent | Description | Tools |
+|-------|-------------|-------|
+| `track-management-planner` | Plan Stage 5 implementation with architecture decisions | Read, Glob, Grep, CodeAlive, Context7 |
+
+### Implementation Agents
+
+| Agent | Description | Tools |
+|-------|-------------|-------|
+| `track-api-implementer` | Implement API endpoints, services, and models | Read, Write, Edit, Bash, IDE diagnostics |
+| `lifecycle-worker-implementer` | Create lifecycle worker project with Kafka handlers | Read, Write, Edit, Bash, IDE diagnostics |
+
+### Testing Agent
+
+| Agent | Description | Tools |
+|-------|-------------|-------|
+| `track-tester` | Write unit and integration tests | Read, Write, Edit, Bash, IDE diagnostics |
+
+### Workflow Example
+
+Use agents for parallel implementation:
+
+```
+# Phase 1: Planning (single agent)
+Task(subagent_type="track-management-planner", prompt="Analyze current Track model and identify required changes")
+
+# Phase 2: Implementation (parallel agents)
+Task(subagent_type="track-api-implementer", prompt="Implement TrackManagementService and endpoints")
+Task(subagent_type="lifecycle-worker-implementer", prompt="Create lifecycle worker project")
+
+# Phase 3: Testing (after implementation)
+Task(subagent_type="track-tester", prompt="Write unit tests for TrackManagementService")
+```
+
+### Agent Locations
+
+All agents are defined in `.claude/agents/`:
+- `track-management-planner.md`
+- `track-api-implementer.md`
+- `lifecycle-worker-implementer.md`
+- `track-tester.md`
