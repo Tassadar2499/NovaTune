@@ -120,6 +120,16 @@ else
         .WaitFor(storage)
         .WithEnvironment("NovaTune__TopicPrefix", "dev");
 
+    // Lifecycle Worker - handles track deletion events and physical deletion
+    builder.AddProject<Projects.NovaTuneApp_Workers_Lifecycle>("lifecycle-worker")
+        .WithReference(messaging)
+        .WaitFor(messaging)
+        .WithReference(database)
+        .WaitFor(database)
+        .WithReference(storage.GetEndpoint("api"))
+        .WaitFor(storage)
+        .WithEnvironment("NovaTune__TopicPrefix", "dev");
+
     builder.AddProject<Projects.NovaTuneApp_Web>("webfrontend")
         .WithExternalHttpEndpoints()
         .WithHttpHealthCheck("/health")

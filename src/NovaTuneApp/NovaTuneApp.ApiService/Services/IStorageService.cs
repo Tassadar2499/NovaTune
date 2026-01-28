@@ -64,6 +64,13 @@ public interface IStorageService
         string objectKey,
         TimeSpan expiry,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes an object from storage (Stage 5).
+    /// </summary>
+    /// <param name="objectKey">The storage object key.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DeleteObjectAsync(string objectKey, CancellationToken ct = default);
 }
 
 /// <summary>

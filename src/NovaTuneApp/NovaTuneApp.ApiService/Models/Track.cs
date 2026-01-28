@@ -72,4 +72,21 @@ public sealed class Track
     /// Timestamp when processing completed (Status changed to Ready or Failed).
     /// </summary>
     public DateTimeOffset? ProcessedAt { get; set; }
+
+    // Soft-delete fields (Stage 5)
+
+    /// <summary>
+    /// Timestamp when the track was soft-deleted.
+    /// </summary>
+    public DateTimeOffset? DeletedAt { get; set; }
+
+    /// <summary>
+    /// Timestamp when physical deletion will occur.
+    /// </summary>
+    public DateTimeOffset? ScheduledDeletionAt { get; set; }
+
+    /// <summary>
+    /// Status before deletion, used for restoration.
+    /// </summary>
+    public TrackStatus? StatusBeforeDeletion { get; set; }
 }

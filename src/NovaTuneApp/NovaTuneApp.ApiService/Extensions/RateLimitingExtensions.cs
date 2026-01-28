@@ -90,6 +90,54 @@ public static class RateLimitingExtensions
                     });
             });
 
+            // Track Management: List tracks per user (60 req/min)
+            options.AddPolicy("track-list", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"track-list:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 60,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6
+                    });
+            });
+
+            // Track Management: Update track per user (30 req/min)
+            options.AddPolicy("track-update", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"track-update:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 30,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6
+                    });
+            });
+
+            // Track Management: Delete track per user (10 req/min)
+            options.AddPolicy("track-delete", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"track-delete:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6
+                    });
+            });
+
             // On rejected: add Retry-After header and return Problem Details
             options.OnRejected = async (context, token) =>
             {

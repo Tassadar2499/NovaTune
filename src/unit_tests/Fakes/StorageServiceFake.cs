@@ -146,6 +146,18 @@ public class StorageServiceFake : IStorageService
         }
     }
 
+    public Task DeleteObjectAsync(string objectKey, CancellationToken ct = default)
+    {
+        if (ExceptionToThrow != null)
+        {
+            throw ExceptionToThrow;
+        }
+
+        DeletedKeys.Add(objectKey);
+        Objects.Remove(objectKey);
+        return Task.CompletedTask;
+    }
+
     /// <summary>
     /// Resets the fake to its initial state.
     /// </summary>

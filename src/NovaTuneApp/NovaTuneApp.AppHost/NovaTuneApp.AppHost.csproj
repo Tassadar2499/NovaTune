@@ -13,6 +13,7 @@
         <ProjectReference Include="..\NovaTuneApp.Web\NovaTuneApp.Web.csproj"/>
         <ProjectReference Include="..\NovaTuneApp.Workers.UploadIngestor\NovaTuneApp.Workers.UploadIngestor.csproj"/>
         <ProjectReference Include="..\NovaTuneApp.Workers.AudioProcessor\NovaTuneApp.Workers.AudioProcessor.csproj"/>
+        <ProjectReference Include="..\NovaTuneApp.Workers.Lifecycle\NovaTuneApp.Workers.Lifecycle.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

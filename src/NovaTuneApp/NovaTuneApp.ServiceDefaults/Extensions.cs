@@ -69,6 +69,7 @@ public static class Extensions
     // Custom activity source and meter names for NovaTune observability (NF-4.x)
     public const string NovaTuneActivitySourceName = "NovaTune.Api";
     public const string NovaTuneMeterName = "NovaTune.Api";
+    public const string NovaTuneLifecycleMeterName = "NovaTune.Lifecycle";
 
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
@@ -86,7 +87,9 @@ public static class Extensions
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation()
                     // Register custom NovaTune metrics (NF-4.4)
-                    .AddMeter(NovaTuneMeterName);
+                    .AddMeter(NovaTuneMeterName)
+                    // Register lifecycle worker metrics (Stage 5)
+                    .AddMeter(NovaTuneLifecycleMeterName);
             })
             .WithTracing(tracing =>
             {

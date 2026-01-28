@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>dotnet-NovaTuneApp.Workers.Lifecycle</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\NovaTuneApp.ServiceDefaults\NovaTuneApp.ServiceDefaults.csproj" />
+        <ProjectReference Include="..\NovaTuneApp.ApiService\NovaTuneApp.ApiService.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- KafkaFlow for Kafka/Redpanda messaging -->
+        <PackageReference Include="KafkaFlow" Version="3.1.0" />
+        <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection" Version="3.1.0" />
+        <PackageReference Include="KafkaFlow.Serializer.JsonCore" Version="3.1.0" />
+
+        <!-- RavenDB -->
+        <PackageReference Include="RavenDB.Client" Version="7.0.2" />
+
+        <!-- MinIO -->
+        <PackageReference Include="Minio" Version="6.0.3" />
+
+        <!-- Health Checks -->
+        <PackageReference Include="AspNetCore.HealthChecks.Kafka" Version="9.0.0" />
+        <PackageReference Include="AspNetCore.HealthChecks.RavenDB" Version="9.0.0" />
+
+        <!-- Serilog -->
+        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+        <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+        <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
+    </ItemGroup>
+
+</Project>

@@ -193,4 +193,24 @@ public class StorageService : IStorageService
             return new PresignedDownloadResult(url, expiresAt);
         }, ct);
     }
+
+    /// <summary>
+    /// Deletes an object from storage (Stage 5).
+    /// Uses general pipeline with timeout and circuit breaker.
+    /// </summary>
+    public async Task DeleteObjectAsync(string objectKey, CancellationToken ct = default)
+    {
+        await _generalPipeline.ExecuteAsync(async token =>
+        {
+            _logger.LogDebug("Deleting object {ObjectKey}", objectKey);
+
+            var args = new RemoveObjectArgs()
+                .WithBucket(_audioBucket)
+                .WithObject(objectKey);
+
+            await _minioClient.RemoveObjectAsync(args, token);
+
+            _logger.LogDebug("Deleted object {ObjectKey}", objectKey);
+        }, ct);
+    }
 }

@@ -1,6 +1,10 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Aspire.Hosting;
 using Microsoft.Extensions.Configuration;
 using NovaTuneApp.ApiService.Models;
+using NovaTuneApp.ApiService.Models.Auth;
 using NovaTuneApp.ApiService.Models.Identity;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Linq;
@@ -195,9 +199,143 @@ public class IntegrationTestsApiFactory : IAsyncLifetime
         foreach (var token in tokens)
             session.Delete(token);
 
+        // Delete all Tracks
+        var tracks = await session.Query<Track>()
+            .Customize(x => x.WaitForNonStaleResults())
+            .ToListAsync();
+        foreach (var track in tracks)
+            session.Delete(track);
+
         // Wait for indexes to process the deletions before returning
         // This ensures subsequent test operations see a clean database
         session.Advanced.WaitForIndexesAfterSaveChanges();
         await session.SaveChangesAsync();
+    }
+
+    // ========================================================================
+    // Track Test Helpers
+    // ========================================================================
+
+    /// <summary>
+    /// Seeds a test track in the database.
+    /// </summary>
+    /// <param name="title">Track title.</param>
+    /// <param name="artist">Track artist (optional).</param>
+    /// <param name="userId">User ID who owns the track. If null, uses the test user ID.</param>
+    /// <param name="status">Track status (default: Ready).</param>
+    /// <returns>The track ID (ULID).</returns>
+    public async Task<string> SeedTrackAsync(
+        string title,
+        string? artist = null,
+        string? userId = null,
+        TrackStatus status = TrackStatus.Ready)
+    {
+        var trackId = Ulid.NewUlid().ToString();
+        var now = DateTimeOffset.UtcNow;
+
+        var track = new Track
+        {
+            Id = $"Tracks/{trackId}",
+            TrackId = trackId,
+            UserId = userId ?? "test-user-id",
+            Title = title,
+            Artist = artist,
+            Duration = TimeSpan.FromMinutes(3) + TimeSpan.FromSeconds(Random.Shared.Next(0, 59)),
+            ObjectKey = $"audio/{trackId}.mp3",
+            FileSizeBytes = Random.Shared.Next(1_000_000, 10_000_000),
+            MimeType = "audio/mpeg",
+            Status = status,
+            CreatedAt = now,
+            UpdatedAt = now,
+            ProcessedAt = status == TrackStatus.Ready ? now : null
+        };
+
+        using var session = _documentStore.OpenAsyncSession();
+        await session.StoreAsync(track);
+        session.Advanced.WaitForIndexesAfterSaveChanges();
+        await session.SaveChangesAsync();
+
+        return trackId;
+    }
+
+    /// <summary>
+    /// Seeds multiple test tracks in the database.
+    /// </summary>
+    /// <param name="count">Number of tracks to create.</param>
+    /// <param name="userId">User ID who owns the tracks.</param>
+    /// <returns>List of track IDs (ULIDs).</returns>
+    public async Task<List<string>> SeedTestTracksAsync(int count, string? userId = null)
+    {
+        var trackIds = new List<string>();
+        for (int i = 0; i < count; i++)
+        {
+            var trackId = await SeedTrackAsync($"Track {i + 1}", $"Artist {i + 1}", userId);
+            trackIds.Add(trackId);
+            // Small delay to ensure distinct CreatedAt timestamps for ordering tests
+            await Task.Delay(10);
+        }
+        return trackIds;
+    }
+
+    /// <summary>
+    /// Gets a track by ID for test verification.
+    /// </summary>
+    public async Task<Track?> GetTrackByIdAsync(string trackId)
+    {
+        using var session = _documentStore.OpenAsyncSession();
+        return await session.LoadAsync<Track>($"Tracks/{trackId}");
+    }
+
+    /// <summary>
+    /// Gets the count of tracks for a user.
+    /// </summary>
+    public async Task<int> GetTrackCountAsync(string? userId = null)
+    {
+        using var session = _documentStore.OpenAsyncSession();
+        var query = session.Query<Track>()
+            .Customize(x => x.WaitForNonStaleResults());
+
+        if (userId != null)
+            query = query.Where(t => t.UserId == userId);
+
+        return await query.CountAsync();
+    }
+
+    /// <summary>
+    /// Creates an authenticated HTTP client with a test user and returns it along with the user ID.
+    /// </summary>
+    public async Task<(HttpClient Client, string UserId)> CreateAuthenticatedClientWithUserAsync(
+        string email = "testuser@example.com")
+    {
+        var client = CreateClient();
+        var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+        // Register user
+        var registerRequest = new RegisterRequest(email, "Test User", "SecurePassword123!");
+        var registerResponse = await client.PostAsJsonAsync("/auth/register", registerRequest);
+        registerResponse.EnsureSuccessStatusCode();
+
+        // Login to get token
+        var loginRequest = new LoginRequest(email, "SecurePassword123!");
+        var loginResponse = await client.PostAsJsonAsync("/auth/login", loginRequest);
+        loginResponse.EnsureSuccessStatusCode();
+
+        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>(jsonOptions);
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", authResponse!.AccessToken);
+
+        // Get the user ID from the database
+        // Note: Use UserId (external ULID identifier), not Id (RavenDB document ID)
+        var user = await GetUserByEmailAsync(email);
+
+        return (client, user!.UserId);
+    }
+
+    /// <summary>
+    /// Opens a RavenDB session for direct database access in tests.
+    /// </summary>
+    public Raven.Client.Documents.Session.IAsyncDocumentSession OpenSession()
+    {
+        return _documentStore.OpenAsyncSession();
     }
 }

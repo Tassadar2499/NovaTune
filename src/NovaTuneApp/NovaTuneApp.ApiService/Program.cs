@@ -13,6 +13,7 @@ using NovaTuneApp.ApiService.Infrastructure.Messaging;
 using NovaTuneApp.ApiService.Infrastructure.Middleware;
 using NovaTuneApp.ApiService.Infrastructure.RateLimiting;
 using NovaTuneApp.ApiService.Services;
+using Polly.Registry;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
@@ -83,6 +84,21 @@ try
     builder.Services.Configure<NovaTuneOptions>(
         builder.Configuration.GetSection(NovaTuneOptions.SectionName));
     builder.Services.AddHostedService<ConfigurationValidationService>();
+
+    // ============================================================================
+    // Track Management Configuration (Stage 5)
+    // ============================================================================
+    builder.Services.AddOptions<TrackManagementOptions>()
+        .Bind(builder.Configuration.GetSection(TrackManagementOptions.SectionName))
+        .ValidateDataAnnotations()
+        .Validate(options =>
+        {
+            if (options.DeletionGracePeriod < TimeSpan.FromMinutes(1))
+                return false;
+            if (options.DefaultPageSize > options.MaxPageSize)
+                return false;
+            return true;
+        }, "Invalid TrackManagementOptions: DeletionGracePeriod must be >= 1 minute, DefaultPageSize must be <= MaxPageSize");
 
     // ============================================================================
     // Health Checks Configuration (NF-1.2)
@@ -200,6 +216,13 @@ try
     builder.Services.AddSingleton<ITrackService, TrackService>();
     builder.Services.AddSingleton<IStorageService, StorageService>();
     builder.Services.AddScoped<IUploadService, UploadService>();
+    // Decorator pattern: wrap TrackManagementService with resilience policies (NF-1.4)
+    builder.Services.AddScoped<TrackManagementService>();
+    builder.Services.AddScoped<ITrackManagementService>(sp =>
+        new ResilientTrackManagementService(
+            sp.GetRequiredService<TrackManagementService>(),
+            sp.GetRequiredService<ResiliencePipelineProvider<string>>(),
+            sp.GetRequiredService<ILogger<ResilientTrackManagementService>>()));
 
     // ============================================================================
     // Streaming Services (Stage 4)
@@ -347,6 +370,9 @@ try
 
     // Map streaming endpoints (Stage 4)
     app.MapStreamEndpoints();
+
+    // Map track management endpoints (Stage 5)
+    app.MapTrackEndpoints();
 
     app.MapGet("/weatherforecast", () =>
         {

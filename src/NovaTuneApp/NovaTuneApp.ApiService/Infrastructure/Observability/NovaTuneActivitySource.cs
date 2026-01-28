@@ -47,6 +47,112 @@ public static class NovaTuneActivitySource
         return activity;
     }
 
+    // ============================================================================
+    // Track Management Operations (Stage 5)
+    // ============================================================================
+
+    /// <summary>
+    /// Starts an activity for listing tracks.
+    /// </summary>
+    public static Activity? StartTrackList(string userId, string? search = null)
+    {
+        var activity = Source.StartActivity("track.list", ActivityKind.Internal);
+        activity?.SetTag("user.id", userId);
+        if (search is not null)
+        {
+            activity?.SetTag("query.search", search);
+        }
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an activity for getting a track.
+    /// </summary>
+    public static Activity? StartTrackGet(string trackId, string userId)
+    {
+        var activity = Source.StartActivity("track.get", ActivityKind.Internal);
+        activity?.SetTag("track.id", trackId);
+        activity?.SetTag("user.id", userId);
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an activity for updating a track.
+    /// </summary>
+    public static Activity? StartTrackUpdate(string trackId, string userId)
+    {
+        var activity = Source.StartActivity("track.update", ActivityKind.Internal);
+        activity?.SetTag("track.id", trackId);
+        activity?.SetTag("user.id", userId);
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an activity for soft-deleting a track.
+    /// </summary>
+    public static Activity? StartTrackSoftDelete(string trackId, string userId)
+    {
+        var activity = Source.StartActivity("track.delete", ActivityKind.Internal);
+        activity?.SetTag("track.id", trackId);
+        activity?.SetTag("user.id", userId);
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an activity for restoring a track.
+    /// </summary>
+    public static Activity? StartTrackRestore(string trackId, string userId)
+    {
+        var activity = Source.StartActivity("track.restore", ActivityKind.Internal);
+        activity?.SetTag("track.id", trackId);
+        activity?.SetTag("user.id", userId);
+        return activity;
+    }
+
+    // ============================================================================
+    // Track Management Child Spans
+    // ============================================================================
+
+    /// <summary>
+    /// Starts an activity for loading a track from the database.
+    /// </summary>
+    public static Activity? StartDbLoadTrack(string trackId)
+    {
+        var activity = Source.StartActivity("db.load_track", ActivityKind.Client);
+        activity?.SetTag("track.id", trackId);
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an activity for updating track status in the database.
+    /// </summary>
+    public static Activity? StartDbUpdateStatus(string trackId)
+    {
+        var activity = Source.StartActivity("db.update_status", ActivityKind.Client);
+        activity?.SetTag("track.id", trackId);
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an activity for writing to the outbox.
+    /// </summary>
+    public static Activity? StartOutboxWrite(string messageType)
+    {
+        var activity = Source.StartActivity("outbox.write", ActivityKind.Client);
+        activity?.SetTag("message.type", messageType);
+        return activity;
+    }
+
+    /// <summary>
+    /// Starts an activity for cache invalidation.
+    /// </summary>
+    public static Activity? StartCacheInvalidate(string trackId)
+    {
+        var activity = Source.StartActivity("cache.invalidate", ActivityKind.Client);
+        activity?.SetTag("track.id", trackId);
+        return activity;
+    }
+
     /// <summary>
     /// Starts an activity for cache operations.
     /// </summary>

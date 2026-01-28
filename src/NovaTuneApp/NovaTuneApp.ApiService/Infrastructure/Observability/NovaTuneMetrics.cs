@@ -206,7 +206,80 @@ public static class NovaTuneMetrics
         description: "Total number of outbox messages that failed permanently");
 
     // ============================================================================
-    // Track Deletion Metrics
+    // Track Management Metrics (Stage 5)
+    // ============================================================================
+
+    /// <summary>
+    /// Counter for track list requests.
+    /// Tags: status (success, error)
+    /// </summary>
+    public static readonly Counter<long> TrackListRequestsTotal = Meter.CreateCounter<long>(
+        name: "novatune.track_list_requests_total",
+        unit: "{requests}",
+        description: "Total number of track list requests");
+
+    /// <summary>
+    /// Histogram for track list request duration.
+    /// </summary>
+    public static readonly Histogram<double> TrackListDuration = Meter.CreateHistogram<double>(
+        name: "novatune.track_list_duration_ms",
+        unit: "ms",
+        description: "Track list request duration in milliseconds");
+
+    /// <summary>
+    /// Counter for track get requests.
+    /// Tags: status (success, not_found, access_denied)
+    /// </summary>
+    public static readonly Counter<long> TrackGetRequestsTotal = Meter.CreateCounter<long>(
+        name: "novatune.track_get_requests_total",
+        unit: "{requests}",
+        description: "Total number of track get requests");
+
+    /// <summary>
+    /// Counter for track update requests.
+    /// Tags: status (success, not_found, access_denied, deleted)
+    /// </summary>
+    public static readonly Counter<long> TrackUpdateRequestsTotal = Meter.CreateCounter<long>(
+        name: "novatune.track_update_requests_total",
+        unit: "{requests}",
+        description: "Total number of track update requests");
+
+    /// <summary>
+    /// Counter for track delete requests.
+    /// Tags: status (success, not_found, access_denied, already_deleted)
+    /// </summary>
+    public static readonly Counter<long> TrackDeleteRequestsTotal = Meter.CreateCounter<long>(
+        name: "novatune.track_delete_requests_total",
+        unit: "{requests}",
+        description: "Total number of track delete requests");
+
+    /// <summary>
+    /// Counter for track restore requests.
+    /// Tags: status (success, not_found, access_denied, not_deleted, expired)
+    /// </summary>
+    public static readonly Counter<long> TrackRestoreRequestsTotal = Meter.CreateCounter<long>(
+        name: "novatune.track_restore_requests_total",
+        unit: "{requests}",
+        description: "Total number of track restore requests");
+
+    /// <summary>
+    /// Counter for successful soft deletions.
+    /// </summary>
+    public static readonly Counter<long> TrackSoftDeletionsTotal = Meter.CreateCounter<long>(
+        name: "novatune.track_soft_deletions_total",
+        unit: "{tracks}",
+        description: "Total number of tracks soft-deleted");
+
+    /// <summary>
+    /// Counter for successful track restorations.
+    /// </summary>
+    public static readonly Counter<long> TrackRestorationsTotal = Meter.CreateCounter<long>(
+        name: "novatune.track_restorations_total",
+        unit: "{tracks}",
+        description: "Total number of tracks restored from deletion");
+
+    // ============================================================================
+    // Track Deletion Metrics (Legacy)
     // ============================================================================
 
     /// <summary>
@@ -534,6 +607,78 @@ public static class NovaTuneMetrics
     public static void RecordAudioTrackDuration(double durationSeconds)
     {
         AudioTrackDuration.Record(durationSeconds);
+    }
+
+    // ============================================================================
+    // Track Management Helper Methods (Stage 5)
+    // ============================================================================
+
+    /// <summary>
+    /// Records a track list request.
+    /// </summary>
+    /// <param name="status">Request status (success, error).</param>
+    /// <param name="durationMs">Request duration in milliseconds.</param>
+    public static void RecordTrackListRequest(string status, double durationMs)
+    {
+        var tags = new TagList { { "status", status } };
+        TrackListRequestsTotal.Add(1, tags);
+        TrackListDuration.Record(durationMs);
+    }
+
+    /// <summary>
+    /// Records a track get request.
+    /// </summary>
+    /// <param name="status">Request status (success, not_found, access_denied).</param>
+    public static void RecordTrackGetRequest(string status)
+    {
+        var tags = new TagList { { "status", status } };
+        TrackGetRequestsTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records a track update request.
+    /// </summary>
+    /// <param name="status">Request status (success, not_found, access_denied, deleted).</param>
+    public static void RecordTrackUpdateRequest(string status)
+    {
+        var tags = new TagList { { "status", status } };
+        TrackUpdateRequestsTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records a track delete request.
+    /// </summary>
+    /// <param name="status">Request status (success, not_found, access_denied, already_deleted).</param>
+    public static void RecordTrackDeleteRequest(string status)
+    {
+        var tags = new TagList { { "status", status } };
+        TrackDeleteRequestsTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records a track restore request.
+    /// </summary>
+    /// <param name="status">Request status (success, not_found, access_denied, not_deleted, expired).</param>
+    public static void RecordTrackRestoreRequest(string status)
+    {
+        var tags = new TagList { { "status", status } };
+        TrackRestoreRequestsTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records a successful track soft deletion.
+    /// </summary>
+    public static void RecordTrackSoftDeletion()
+    {
+        TrackSoftDeletionsTotal.Add(1);
+    }
+
+    /// <summary>
+    /// Records a successful track restoration.
+    /// </summary>
+    public static void RecordTrackRestoration()
+    {
+        TrackRestorationsTotal.Add(1);
     }
 
     // ============================================================================
