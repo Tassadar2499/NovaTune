@@ -138,6 +138,122 @@ public static class RateLimitingExtensions
                     });
             });
 
+            // ============================================================================
+            // Playlist Management Rate Limits (Stage 6)
+            // ============================================================================
+
+            // Playlist: List playlists per user (60 req/min)
+            options.AddPolicy("playlist-list", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"playlist-list:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 60,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6
+                    });
+            });
+
+            // Playlist: Create playlist per user (20 req/min)
+            options.AddPolicy("playlist-create", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"playlist-create:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 20,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 4
+                    });
+            });
+
+            // Playlist: Update playlist per user (30 req/min)
+            options.AddPolicy("playlist-update", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"playlist-update:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 30,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6
+                    });
+            });
+
+            // Playlist: Delete playlist per user (20 req/min)
+            options.AddPolicy("playlist-delete", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"playlist-delete:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 20,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 4
+                    });
+            });
+
+            // Playlist: Add tracks per user (30 req/min)
+            options.AddPolicy("playlist-tracks-add", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"playlist-tracks-add:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 30,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6
+                    });
+            });
+
+            // Playlist: Remove track per user (60 req/min)
+            options.AddPolicy("playlist-tracks-remove", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"playlist-tracks-remove:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 60,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6
+                    });
+            });
+
+            // Playlist: Reorder tracks per user (30 req/min)
+            options.AddPolicy("playlist-reorder", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"playlist-reorder:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 30,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6
+                    });
+            });
+
             // On rejected: add Retry-After header and return Problem Details
             options.OnRejected = async (context, token) =>
             {

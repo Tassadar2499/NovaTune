@@ -101,6 +101,21 @@ try
         }, "Invalid TrackManagementOptions: DeletionGracePeriod must be >= 1 minute, DefaultPageSize must be <= MaxPageSize");
 
     // ============================================================================
+    // Playlist Management Configuration (Stage 6)
+    // ============================================================================
+    builder.Services.AddOptions<PlaylistOptions>()
+        .Bind(builder.Configuration.GetSection(PlaylistOptions.SectionName))
+        .ValidateDataAnnotations()
+        .Validate(options =>
+        {
+            if (options.DefaultPageSize > options.MaxPageSize)
+                return false;
+            if (options.MaxTracksPerAddRequest > options.MaxTracksPerPlaylist)
+                return false;
+            return true;
+        }, "Invalid PlaylistOptions: DefaultPageSize must be <= MaxPageSize, MaxTracksPerAddRequest must be <= MaxTracksPerPlaylist");
+
+    // ============================================================================
     // Health Checks Configuration (NF-1.2)
     // ============================================================================
     // Required dependencies: RavenDB
@@ -223,6 +238,9 @@ try
             sp.GetRequiredService<TrackManagementService>(),
             sp.GetRequiredService<ResiliencePipelineProvider<string>>(),
             sp.GetRequiredService<ILogger<ResilientTrackManagementService>>()));
+
+    // Playlist Management Service (Stage 6)
+    builder.Services.AddScoped<IPlaylistService, PlaylistService>();
 
     // ============================================================================
     // Streaming Services (Stage 4)
@@ -373,6 +391,9 @@ try
 
     // Map track management endpoints (Stage 5)
     app.MapTrackEndpoints();
+
+    // Map playlist management endpoints (Stage 6)
+    app.MapPlaylistEndpoints();
 
     app.MapGet("/weatherforecast", () =>
         {

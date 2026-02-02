@@ -164,6 +164,13 @@ try
     builder.Services.AddScoped<IStorageService, StorageService>();
 
     // ============================================================================
+    // Playlist Service (for track deletion cascade, Stage 6)
+    // ============================================================================
+    builder.Services.AddScoped(sp =>
+        sp.GetRequiredService<IDocumentStore>().OpenAsyncSession());
+    builder.Services.AddScoped<IPlaylistService, PlaylistService>();
+
+    // ============================================================================
     // Services
     // ============================================================================
     builder.Services.AddTransient<TrackDeletedHandler>();

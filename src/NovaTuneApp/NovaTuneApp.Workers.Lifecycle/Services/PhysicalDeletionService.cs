@@ -185,7 +185,23 @@ public class PhysicalDeletionService : BackgroundService
             }
         }
 
-        // 3. Delete RavenDB document
+        // 3. Remove track references from playlists (Stage 6)
+        try
+        {
+            using var playlistScope = _serviceProvider.CreateScope();
+            var playlistService = playlistScope.ServiceProvider.GetRequiredService<IPlaylistService>();
+            await playlistService.RemoveDeletedTrackReferencesAsync(track.TrackId, track.UserId, ct);
+            _logger.LogDebug("Removed track {TrackId} references from playlists", track.TrackId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Failed to remove track {TrackId} from playlists, continuing with deletion",
+                track.TrackId);
+            // Continue - playlist cleanup is best effort; track will be gone anyway
+        }
+
+        // 4. Delete RavenDB document
         session.Delete(track);
         await session.SaveChangesAsync(ct);
 
@@ -195,7 +211,7 @@ public class PhysicalDeletionService : BackgroundService
             "Physically deleted track {TrackId} for user {UserId}, freed {Bytes} bytes in {Duration}ms",
             track.TrackId, track.UserId, track.FileSizeBytes, duration.TotalMilliseconds);
 
-        // 4. Record metrics
+        // 5. Record metrics
         metrics?.RecordDeletion(track.FileSizeBytes, duration.TotalMilliseconds);
     }
 }
