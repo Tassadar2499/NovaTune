@@ -83,6 +83,13 @@ public static class KafkaExtensions
             .WithProducerConfig(producerConfig)
             .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
         );
+
+        // Telemetry events producer (Stage 7)
+        cluster.AddProducer("telemetry-producer", producer => producer
+            .DefaultTopic($"{topicPrefix}-telemetry-events")
+            .WithProducerConfig(producerConfig)
+            .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
+        );
     }
 
     private static void ConfigureConsumers(IClusterConfigurationBuilder cluster, string topicPrefix)

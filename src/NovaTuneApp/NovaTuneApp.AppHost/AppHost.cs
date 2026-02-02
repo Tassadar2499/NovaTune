@@ -130,6 +130,14 @@ else
         .WaitFor(storage)
         .WithEnvironment("NovaTune__TopicPrefix", "dev");
 
+    // Telemetry Worker - consumes telemetry events and updates analytics aggregates (Stage 7)
+    builder.AddProject<Projects.NovaTuneApp_Workers_Telemetry>("telemetry-worker")
+        .WithReference(messaging)
+        .WaitFor(messaging)
+        .WithReference(database)
+        .WaitFor(database)
+        .WithEnvironment("NovaTune__TopicPrefix", "dev");
+
     builder.AddProject<Projects.NovaTuneApp_Web>("webfrontend")
         .WithExternalHttpEndpoints()
         .WithHttpHealthCheck("/health")

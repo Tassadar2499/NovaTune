@@ -116,6 +116,23 @@ try
         }, "Invalid PlaylistOptions: DefaultPageSize must be <= MaxPageSize, MaxTracksPerAddRequest must be <= MaxTracksPerPlaylist");
 
     // ============================================================================
+    // Telemetry Configuration (Stage 7)
+    // ============================================================================
+    builder.Services.AddOptions<TelemetryOptions>()
+        .Bind(builder.Configuration.GetSection(TelemetryOptions.SectionName))
+        .ValidateDataAnnotations()
+        .Validate(options =>
+        {
+            if (options.RetentionDays < 1)
+                return false;
+            if (options.MaxBatchSize < 1 || options.MaxBatchSize > 100)
+                return false;
+            if (options.ProgressEventSamplingRate < 0 || options.ProgressEventSamplingRate > 1)
+                return false;
+            return true;
+        }, "Invalid TelemetryOptions: RetentionDays >= 1, MaxBatchSize 1-100, ProgressEventSamplingRate 0.0-1.0");
+
+    // ============================================================================
     // Health Checks Configuration (NF-1.2)
     // ============================================================================
     // Required dependencies: RavenDB
@@ -241,6 +258,10 @@ try
 
     // Playlist Management Service (Stage 6)
     builder.Services.AddScoped<IPlaylistService, PlaylistService>();
+
+    // Telemetry Services (Stage 7)
+    builder.Services.AddSingleton<ITrackAccessValidator, TrackAccessValidator>();
+    builder.Services.AddScoped<ITelemetryIngestionService, TelemetryIngestionService>();
 
     // ============================================================================
     // Streaming Services (Stage 4)
@@ -394,6 +415,9 @@ try
 
     // Map playlist management endpoints (Stage 6)
     app.MapPlaylistEndpoints();
+
+    // Map telemetry endpoints (Stage 7)
+    app.MapTelemetryEndpoints();
 
     app.MapGet("/weatherforecast", () =>
         {

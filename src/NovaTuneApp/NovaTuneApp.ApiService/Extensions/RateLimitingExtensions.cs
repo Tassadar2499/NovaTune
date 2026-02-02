@@ -254,6 +254,54 @@ public static class RateLimitingExtensions
                     });
             });
 
+            // ============================================================================
+            // Telemetry Rate Limits (Stage 7 - NF-2.5: 120 req/min per device)
+            // ============================================================================
+
+            // Telemetry: Single event ingest (120 req/min per device, fallback to user)
+            options.AddPolicy("telemetry-ingest", context =>
+            {
+                // Prefer DeviceId header for rate limiting, fallback to user ID
+                var deviceId = context.Request.Headers["X-Device-Id"].FirstOrDefault();
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+
+                var partitionKey = !string.IsNullOrEmpty(deviceId)
+                    ? $"telemetry-ingest:device:{deviceId}"
+                    : $"telemetry-ingest:user:{userId}";
+
+                // Per device: 120/min, Per user fallback: 60/min
+                var permitLimit = !string.IsNullOrEmpty(deviceId) ? 120 : 60;
+
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: partitionKey,
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = permitLimit,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 10
+                    });
+            });
+
+            // Telemetry: Batch event ingest (10 req/min per user - batch contains up to 50 events)
+            options.AddPolicy("telemetry-ingest-batch", context =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.User.FindFirstValue("sub")
+                    ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: $"telemetry-ingest-batch:{userId}",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 4
+                    });
+            });
+
             // On rejected: add Retry-After header and return Problem Details
             options.OnRejected = async (context, token) =>
             {

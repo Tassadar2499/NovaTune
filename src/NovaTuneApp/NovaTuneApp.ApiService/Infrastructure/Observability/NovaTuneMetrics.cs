@@ -728,4 +728,161 @@ public static class NovaTuneMetrics
         activity?.SetTag("correlation.id", correlationId);
         return activity;
     }
+
+    // ============================================================================
+    // Telemetry Metrics (Stage 7 - NF-4.2)
+    // ============================================================================
+
+    /// <summary>
+    /// Counter for telemetry events ingested.
+    /// Tags: event_type, status (accepted/rejected/sampled), reason
+    /// </summary>
+    public static readonly Counter<long> TelemetryEventsTotal = Meter.CreateCounter<long>(
+        name: "novatune.telemetry_events_total",
+        unit: "{events}",
+        description: "Total number of telemetry events processed");
+
+    /// <summary>
+    /// Counter for telemetry batches processed.
+    /// </summary>
+    public static readonly Counter<long> TelemetryBatchesTotal = Meter.CreateCounter<long>(
+        name: "novatune.telemetry_batches_total",
+        unit: "{batches}",
+        description: "Total number of telemetry batches processed");
+
+    /// <summary>
+    /// Histogram for telemetry batch size.
+    /// </summary>
+    public static readonly Histogram<int> TelemetryBatchSize = Meter.CreateHistogram<int>(
+        name: "novatune.telemetry_batch_size",
+        unit: "{events}",
+        description: "Number of events per telemetry batch");
+
+    /// <summary>
+    /// Histogram for telemetry event age (server time - client time).
+    /// </summary>
+    public static readonly Histogram<double> TelemetryEventAge = Meter.CreateHistogram<double>(
+        name: "novatune.telemetry_event_age_seconds",
+        unit: "s",
+        description: "Age of telemetry events (server time - client time)");
+
+    /// <summary>
+    /// Counter for telemetry worker events processed.
+    /// Tags: event_type, status (success/failure)
+    /// </summary>
+    public static readonly Counter<long> TelemetryWorkerEventsTotal = Meter.CreateCounter<long>(
+        name: "novatune.telemetry_worker_events_total",
+        unit: "{events}",
+        description: "Total number of telemetry events processed by worker");
+
+    /// <summary>
+    /// Histogram for telemetry worker processing duration.
+    /// Tags: event_type
+    /// </summary>
+    public static readonly Histogram<double> TelemetryWorkerDuration = Meter.CreateHistogram<double>(
+        name: "novatune.telemetry_worker_duration_ms",
+        unit: "ms",
+        description: "Telemetry worker event processing duration");
+
+    /// <summary>
+    /// Histogram for telemetry aggregation duration.
+    /// Tags: aggregate_type (hourly/daily/user)
+    /// </summary>
+    public static readonly Histogram<double> TelemetryAggregationDuration = Meter.CreateHistogram<double>(
+        name: "novatune.telemetry_aggregation_duration_ms",
+        unit: "ms",
+        description: "Telemetry aggregation operation duration");
+
+    /// <summary>
+    /// Histogram for analytics query duration.
+    /// Tags: query_type
+    /// </summary>
+    public static readonly Histogram<double> AnalyticsQueryDuration = Meter.CreateHistogram<double>(
+        name: "novatune.analytics_query_duration_ms",
+        unit: "ms",
+        description: "Analytics query duration");
+
+    // ============================================================================
+    // Telemetry Helper Methods (Stage 7)
+    // ============================================================================
+
+    /// <summary>
+    /// Records a telemetry event ingestion.
+    /// </summary>
+    /// <param name="eventType">The event type (play_start, play_stop, etc.).</param>
+    /// <param name="status">Status (accepted, rejected, sampled).</param>
+    /// <param name="reason">Optional rejection reason.</param>
+    public static void RecordTelemetryEvent(string eventType, string status, string? reason)
+    {
+        var tags = new TagList
+        {
+            { "event_type", eventType },
+            { "status", status }
+        };
+        if (reason != null)
+        {
+            tags.Add("reason", reason);
+        }
+        TelemetryEventsTotal.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Records a telemetry batch ingestion.
+    /// </summary>
+    /// <param name="accepted">Number of accepted events.</param>
+    /// <param name="rejected">Number of rejected events.</param>
+    public static void RecordTelemetryBatch(int accepted, int rejected)
+    {
+        var total = accepted + rejected;
+        TelemetryBatchesTotal.Add(1);
+        TelemetryBatchSize.Record(total);
+    }
+
+    /// <summary>
+    /// Records telemetry event age.
+    /// </summary>
+    /// <param name="ageSeconds">Age in seconds.</param>
+    public static void RecordTelemetryEventAge(double ageSeconds)
+    {
+        TelemetryEventAge.Record(ageSeconds);
+    }
+
+    /// <summary>
+    /// Records telemetry worker event processing.
+    /// </summary>
+    /// <param name="eventType">The event type.</param>
+    /// <param name="success">Whether processing succeeded.</param>
+    /// <param name="durationMs">Processing duration in milliseconds.</param>
+    public static void RecordTelemetryWorkerEvent(string eventType, bool success, double durationMs)
+    {
+        var tags = new TagList
+        {
+            { "event_type", eventType },
+            { "status", success ? "success" : "failure" }
+        };
+        TelemetryWorkerEventsTotal.Add(1, tags);
+        TelemetryWorkerDuration.Record(durationMs, new TagList { { "event_type", eventType } });
+    }
+
+    /// <summary>
+    /// Records telemetry aggregation duration.
+    /// </summary>
+    /// <param name="aggregateType">The aggregate type (hourly, daily, user).</param>
+    /// <param name="durationMs">Duration in milliseconds.</param>
+    public static void RecordTelemetryAggregation(string aggregateType, double durationMs)
+    {
+        var tags = new TagList { { "aggregate_type", aggregateType } };
+        TelemetryAggregationDuration.Record(durationMs, tags);
+    }
+
+    /// <summary>
+    /// Records an analytics query.
+    /// </summary>
+    /// <param name="queryType">The query type (track_analytics, top_tracks, etc.).</param>
+    /// <param name="durationMs">Query duration in milliseconds.</param>
+    public static void RecordAnalyticsQuery(string queryType, double durationMs)
+    {
+        var tags = new TagList { { "query_type", queryType } };
+        AnalyticsQueryDuration.Record(durationMs, tags);
+    }
 }

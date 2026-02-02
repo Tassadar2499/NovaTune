@@ -9,20 +9,21 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\NovaTuneApp.ApiService\NovaTuneApp.ApiService.csproj"/>
-        <ProjectReference Include="..\NovaTuneApp.Web\NovaTuneApp.Web.csproj"/>
-        <ProjectReference Include="..\NovaTuneApp.Workers.UploadIngestor\NovaTuneApp.Workers.UploadIngestor.csproj"/>
-        <ProjectReference Include="..\NovaTuneApp.Workers.AudioProcessor\NovaTuneApp.Workers.AudioProcessor.csproj"/>
-        <ProjectReference Include="..\NovaTuneApp.Workers.Lifecycle\NovaTuneApp.Workers.Lifecycle.csproj"/>
+        <ProjectReference Include="..\NovaTuneApp.ApiService\NovaTuneApp.ApiService.csproj" />
+        <ProjectReference Include="..\NovaTuneApp.Web\NovaTuneApp.Web.csproj" />
+        <ProjectReference Include="..\NovaTuneApp.Workers.UploadIngestor\NovaTuneApp.Workers.UploadIngestor.csproj" />
+        <ProjectReference Include="..\NovaTuneApp.Workers.AudioProcessor\NovaTuneApp.Workers.AudioProcessor.csproj" />
+        <ProjectReference Include="..\NovaTuneApp.Workers.Lifecycle\NovaTuneApp.Workers.Lifecycle.csproj" />
+        <ProjectReference Include="..\NovaTuneApp.Workers.Telemetry\NovaTuneApp.Workers.Telemetry.csproj" />
     </ItemGroup>
 
     <ItemGroup>
         <!-- Redis hosting (works with Garnet) -->
-        <PackageReference Include="Aspire.Hosting.Redis" Version="13.0.0"/>
+        <PackageReference Include="Aspire.Hosting.Redis" Version="13.0.0" />
         <!-- Kafka hosting (works with Redpanda) -->
-        <PackageReference Include="Aspire.Hosting.Kafka" Version="13.0.0"/>
+        <PackageReference Include="Aspire.Hosting.Kafka" Version="13.0.0" />
         <!-- RavenDB hosting (Community Toolkit) -->
-        <PackageReference Include="CommunityToolkit.Aspire.Hosting.RavenDB" Version="9.6.0"/>
+        <PackageReference Include="CommunityToolkit.Aspire.Hosting.RavenDB" Version="9.6.0" />
     </ItemGroup>
 
 </Project>

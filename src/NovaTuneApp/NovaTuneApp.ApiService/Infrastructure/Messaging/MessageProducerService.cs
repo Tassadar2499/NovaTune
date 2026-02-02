@@ -11,11 +11,13 @@ public class MessageProducerService : IMessageProducerService
 {
     private readonly IMessageProducer _audioProducer;
     private readonly IMessageProducer _deletionProducer;
+    private readonly IMessageProducer _telemetryProducer;
 
     public MessageProducerService(IProducerAccessor producerAccessor)
     {
         _audioProducer = producerAccessor.GetProducer("audio-producer");
         _deletionProducer = producerAccessor.GetProducer("deletion-producer");
+        _telemetryProducer = producerAccessor.GetProducer("telemetry-producer");
     }
 
     public async Task PublishAudioUploadedAsync(AudioUploadedEvent evt, CancellationToken ct = default)
@@ -32,6 +34,20 @@ public class MessageProducerService : IMessageProducerService
         await _deletionProducer.ProduceAsync(
             messageKey: evt.TrackId.ToString(),
             messageValue: evt
+        );
+    }
+
+    public async Task PublishTelemetryEventAsync(TelemetryEvent evt, CancellationToken ct = default)
+    {
+        // Use TrackId as partition key (Req 9.5) to ensure ordering per track
+        await _telemetryProducer.ProduceAsync(
+            messageKey: evt.TrackId,
+            messageValue: evt,
+            headers: new MessageHeaders
+            {
+                { "schema-version", "1"u8.ToArray() },
+                { "correlation-id", System.Text.Encoding.UTF8.GetBytes(evt.CorrelationId) }
+            }
         );
     }
 }

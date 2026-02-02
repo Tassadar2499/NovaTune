@@ -16,4 +16,9 @@ public interface IMessageProducerService
     /// Publishes a track deleted event.
     /// </summary>
     Task PublishTrackDeletedAsync(TrackDeletedEvent evt, CancellationToken ct = default);
+
+    /// <summary>
+    /// Publishes a telemetry event for playback analytics (Req 9.1).
+    /// </summary>
+    Task PublishTelemetryEventAsync(TelemetryEvent evt, CancellationToken ct = default);
 }
