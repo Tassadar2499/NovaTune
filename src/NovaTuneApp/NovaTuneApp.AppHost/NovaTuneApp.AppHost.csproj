@@ -24,6 +24,8 @@
         <PackageReference Include="Aspire.Hosting.Kafka" Version="13.0.0" />
         <!-- RavenDB hosting (Community Toolkit) -->
         <PackageReference Include="CommunityToolkit.Aspire.Hosting.RavenDB" Version="9.6.0" />
+        <!-- Node.js hosting for Vue/Vite frontend -->
+        <PackageReference Include="Aspire.Hosting.NodeJs" Version="9.3.0" />
     </ItemGroup>
 
 </Project>

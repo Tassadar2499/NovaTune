@@ -10,4 +10,28 @@
         <ProjectReference Include="..\NovaTuneApp.ServiceDefaults\NovaTuneApp.ServiceDefaults.csproj"/>
     </ItemGroup>
 
+    <!-- Copy Vue builds to wwwroot for Release builds -->
+    <Target Name="CopyVueBuilds" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
+        <Message Text="Copying Vue builds to wwwroot..." Importance="high"/>
+
+        <RemoveDir Directories="$(ProjectDir)wwwroot" />
+        <MakeDir Directories="$(ProjectDir)wwwroot" />
+        <MakeDir Directories="$(ProjectDir)wwwroot\admin" />
+
+        <ItemGroup>
+            <PlayerFiles Include="$(ProjectDir)..\..\NovaTuneClient\apps\player\dist\**\*" />
+            <AdminFiles Include="$(ProjectDir)..\..\NovaTuneClient\apps\admin\dist\**\*" />
+        </ItemGroup>
+
+        <Copy SourceFiles="@(PlayerFiles)"
+              DestinationFolder="$(ProjectDir)wwwroot\%(RecursiveDir)"
+              SkipUnchangedFiles="true"
+              Condition="'@(PlayerFiles)' != ''" />
+
+        <Copy SourceFiles="@(AdminFiles)"
+              DestinationFolder="$(ProjectDir)wwwroot\admin\%(RecursiveDir)"
+              SkipUnchangedFiles="true"
+              Condition="'@(AdminFiles)' != ''" />
+    </Target>
+
 </Project>

@@ -17,6 +17,7 @@ static string? GetEnvironmentName(string[] appArgs)
 
 var environmentName = GetEnvironmentName(args) ?? "Production";
 var isTesting = string.Equals(environmentName, "Testing", StringComparison.OrdinalIgnoreCase);
+var isDevelopment = string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase);
 
 // Cache (Garnet via Redis protocol)
 var cache = builder.AddRedis("cache")
@@ -138,12 +139,30 @@ else
         .WaitFor(database)
         .WithEnvironment("NovaTune__TopicPrefix", "dev");
 
-    builder.AddProject<Projects.NovaTuneApp_Web>("webfrontend")
-        .WithExternalHttpEndpoints()
-        .WithHttpHealthCheck("/health")
-        .WithReference(apiService)
-        .WithReference(cache)
-        .WaitFor(apiService);
+    if (isDevelopment)
+    {
+        // Development: Run Vite dev servers via Aspire
+        builder.AddNpmApp("player", "../../NovaTuneClient/apps/player", "dev")
+            .WithHttpEndpoint(port: 25173, env: "PORT")
+            .WithExternalHttpEndpoints()
+            .WithEnvironment("VITE_API_BASE_URL", apiService.GetEndpoint("http"))
+            .WaitFor(apiService);
+
+        builder.AddNpmApp("admin", "../../NovaTuneClient/apps/admin", "dev")
+            .WithHttpEndpoint(port: 25174, env: "PORT")
+            .WithExternalHttpEndpoints()
+            .WithEnvironment("VITE_API_BASE_URL", apiService.GetEndpoint("http"))
+            .WaitFor(apiService);
+    }
+    else
+    {
+        // Production: Serve pre-built Vue apps via static file server
+        builder.AddProject<Projects.NovaTuneApp_Web>("webfrontend")
+            .WithExternalHttpEndpoints()
+            .WithHttpHealthCheck("/health")
+            .WithReference(apiService)
+            .WaitFor(apiService);
+    }
 }
 
 var app = builder.Build();

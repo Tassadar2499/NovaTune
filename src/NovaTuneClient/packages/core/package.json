@@ -1,0 +1,23 @@
+{
+  "name": "@novatune/core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth": "./src/auth/index.ts",
+    "./http": "./src/http/index.ts",
+    "./telemetry": "./src/telemetry/index.ts",
+    "./errors": "./src/errors.ts",
+    "./device": "./src/device.ts"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "@noble/hashes": "^1.4.0",
+    "pinia": "^2.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

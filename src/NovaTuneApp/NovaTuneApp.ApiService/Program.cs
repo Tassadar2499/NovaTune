@@ -76,6 +76,43 @@ try
     builder.AddNovaTuneRateLimiting();
 
     // ============================================================================
+    // CORS Configuration (Frontend Integration)
+    // ============================================================================
+    // Allow Vue.js development servers to access the API.
+    // Production should use more restrictive origins.
+    // ============================================================================
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("Development", policy =>
+        {
+            policy.WithOrigins(
+                "http://localhost:5173",  // Player dev server
+                "http://localhost:5174"   // Admin dev server
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .WithExposedHeaders("X-Correlation-Id");
+        });
+
+        options.AddPolicy("Production", policy =>
+        {
+            var allowedOrigins = builder.Configuration
+                .GetSection("Cors:AllowedOrigins")
+                .Get<string[]>() ?? [];
+
+            if (allowedOrigins.Length > 0)
+            {
+                policy.WithOrigins(allowedOrigins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials()
+                    .WithExposedHeaders("X-Correlation-Id");
+            }
+        });
+    });
+
+    // ============================================================================
     // Configuration Validation (NF-5.1)
     // ============================================================================
     // Validates required configuration at startup; fails fast on misconfiguration.
@@ -369,6 +406,16 @@ try
 
     // Configure the HTTP request pipeline.
     app.UseExceptionHandler();
+
+    // Add CORS middleware (must be early in pipeline, before authentication)
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseCors("Development");
+    }
+    else
+    {
+        app.UseCors("Production");
+    }
 
     // Add correlation ID middleware early in pipeline (NF-4.2)
     app.UseCorrelationId();

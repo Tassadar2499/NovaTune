@@ -16,7 +16,17 @@
       "Skill(claude-code-reflection-skills:optimizing-claude-code)",
       "Bash(python:*)",
       "Skill(claude-code-reflection-skills:claude-mcp-manager)",
-      "Bash(claude mcp:*)"
+      "Bash(claude mcp:*)",
+      "WebSearch",
+      "Skill(setup-vue-workspace)",
+      "Bash(pnpm install:*)",
+      "Bash(npm:*)",
+      "Bash(node --version)",
+      "Bash(ls:*)",
+      "Bash(npx pnpm@9 install:*)",
+      "Bash(npx pnpm@9:*)",
+      "Bash(grep:*)",
+      "Bash(git add:*)"
     ]
   }
 }

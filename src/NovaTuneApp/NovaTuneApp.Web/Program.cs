@@ -1,43 +1,52 @@
-using NovaTuneApp.Web;
-using NovaTuneApp.Web.Components;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
-
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-builder.Services.AddOutputCache();
-
-builder.Services.AddHttpClient<WeatherApiClient>(client =>
-{
-    // This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
-    // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
-    client.BaseAddress = new("https+http://apiservice");
-});
 
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseExceptionHandler("/error");
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 
-app.UseAntiforgery();
+// Serve static files from wwwroot
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
-app.UseOutputCache();
+// Serve admin app from /admin path
+var adminPath = Path.Combine(builder.Environment.WebRootPath, "admin");
+if (Directory.Exists(adminPath))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(adminPath),
+        RequestPath = "/admin"
+    });
+}
 
-app.MapStaticAssets();
+// SPA fallback for player app (root)
+app.MapFallbackToFile("index.html");
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+// SPA fallback for admin routes
+app.MapFallback("/admin/{**path}", async context =>
+{
+    context.Response.ContentType = "text/html";
+    var indexPath = Path.Combine(builder.Environment.WebRootPath, "admin", "index.html");
+    if (File.Exists(indexPath))
+    {
+        await context.Response.SendFileAsync(indexPath);
+    }
+    else
+    {
+        context.Response.StatusCode = 404;
+        await context.Response.WriteAsync("Admin app not found. Run 'pnpm build' in NovaTuneClient first.");
+    }
+});
 
 app.MapDefaultEndpoints();
 
