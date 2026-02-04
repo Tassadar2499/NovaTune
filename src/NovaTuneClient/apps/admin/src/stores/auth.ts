@@ -19,7 +19,8 @@ export const useAuthStore = defineStore('auth', () => {
   const deviceId = getOrCreateDeviceId();
 
   async function login(email: string, password: string) {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetch(`${apiBase}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, deviceId }),
@@ -48,7 +49,8 @@ export const useAuthStore = defineStore('auth', () => {
       throw new Error('No refresh token');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/refresh`, {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetch(`${apiBase}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: refreshToken.value, deviceId }),
@@ -65,8 +67,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/logout`, {
+      await fetch(`${apiBase}/auth/logout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

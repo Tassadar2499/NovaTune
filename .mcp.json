@@ -1,7 +1,8 @@
 {
   "mcpServers": {
     "chrome-devtools": {
-      "disabled": false
+      "disabled": false,
+      "args": ["--cdp-endpoint=http://localhost:9222"]
     }
   }
 }
