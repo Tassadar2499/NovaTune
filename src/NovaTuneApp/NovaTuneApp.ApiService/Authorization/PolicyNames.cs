@@ -24,4 +24,9 @@ public static class PolicyNames
     /// Requires the user to be able to stream (Active or PendingDeletion).
     /// </summary>
     public const string CanStream = "CanStream";
+
+    /// <summary>
+    /// Requires the admin role and audit.read permission.
+    /// </summary>
+    public const string AdminWithAuditAccess = "AdminWithAuditAccess";
 }

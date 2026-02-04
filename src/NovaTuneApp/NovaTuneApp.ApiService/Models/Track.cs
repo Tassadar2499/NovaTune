@@ -73,6 +73,29 @@ public sealed class Track
     /// </summary>
     public DateTimeOffset? ProcessedAt { get; set; }
 
+    // Moderation fields (Stage 8)
+
+    /// <summary>
+    /// Current moderation status (Stage 8).
+    /// </summary>
+    public ModerationStatus ModerationStatus { get; set; } = ModerationStatus.None;
+
+    /// <summary>
+    /// Reason code for moderation action.
+    /// </summary>
+    [MaxLength(64)]
+    public string? ModerationReasonCode { get; set; }
+
+    /// <summary>
+    /// Timestamp when track was last moderated.
+    /// </summary>
+    public DateTimeOffset? ModeratedAt { get; set; }
+
+    /// <summary>
+    /// User ID of admin who performed moderation.
+    /// </summary>
+    public string? ModeratedByUserId { get; set; }
+
     // Soft-delete fields (Stage 5)
 
     /// <summary>

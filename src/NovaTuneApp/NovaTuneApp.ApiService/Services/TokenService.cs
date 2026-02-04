@@ -40,6 +40,12 @@ public class TokenService : ITokenService
             claims.Add(new Claim("roles", role.ToLowerInvariant()));
         }
 
+        // Add permission claims
+        foreach (var permission in user.Permissions)
+        {
+            claims.Add(new Claim("permissions", permission));
+        }
+
         var key = new SymmetricSecurityKey(_keyProvider.SigningKey);
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 

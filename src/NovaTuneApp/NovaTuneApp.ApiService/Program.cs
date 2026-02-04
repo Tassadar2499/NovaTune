@@ -133,6 +133,23 @@ try
         }, "Invalid TelemetryOptions: RetentionDays >= 1, MaxBatchSize 1-100, ProgressEventSamplingRate 0.0-1.0");
 
     // ============================================================================
+    // Admin Configuration (Stage 8)
+    // ============================================================================
+    builder.Services.AddOptions<AdminOptions>()
+        .Bind(builder.Configuration.GetSection(AdminOptions.SectionName))
+        .ValidateDataAnnotations()
+        .Validate(options =>
+        {
+            if (options.DefaultUserPageSize > options.MaxUserPageSize)
+                return false;
+            if (options.DefaultTrackPageSize > options.MaxTrackPageSize)
+                return false;
+            if (options.DefaultAuditPageSize > options.MaxAuditPageSize)
+                return false;
+            return true;
+        }, "Invalid AdminOptions: DefaultPageSize values must be <= MaxPageSize values");
+
+    // ============================================================================
     // Health Checks Configuration (NF-1.2)
     // ============================================================================
     // Required dependencies: RavenDB
@@ -262,6 +279,12 @@ try
     // Telemetry Services (Stage 7)
     builder.Services.AddSingleton<ITrackAccessValidator, TrackAccessValidator>();
     builder.Services.AddScoped<ITelemetryIngestionService, TelemetryIngestionService>();
+
+    // Admin Services (Stage 8)
+    builder.Services.AddScoped<NovaTuneApp.ApiService.Services.Admin.IAuditLogService, NovaTuneApp.ApiService.Services.Admin.AuditLogService>();
+    builder.Services.AddScoped<NovaTuneApp.ApiService.Services.Admin.IAdminUserService, NovaTuneApp.ApiService.Services.Admin.AdminUserService>();
+    builder.Services.AddScoped<NovaTuneApp.ApiService.Services.Admin.IAdminTrackService, NovaTuneApp.ApiService.Services.Admin.AdminTrackService>();
+    builder.Services.AddScoped<NovaTuneApp.ApiService.Services.Admin.IAdminAnalyticsService, NovaTuneApp.ApiService.Services.Admin.AdminAnalyticsService>();
 
     // ============================================================================
     // Streaming Services (Stage 4)
@@ -418,6 +441,9 @@ try
 
     // Map telemetry endpoints (Stage 7)
     app.MapTelemetryEndpoints();
+
+    // Map admin endpoints (Stage 8)
+    app.MapAdminEndpoints();
 
     app.MapGet("/weatherforecast", () =>
         {

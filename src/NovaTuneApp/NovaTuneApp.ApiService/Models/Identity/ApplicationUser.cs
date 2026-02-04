@@ -46,6 +46,11 @@ public class ApplicationUser
     public List<string> Roles { get; set; } = ["Listener"];
 
     /// <summary>
+    /// User permissions (e.g., "audit.read").
+    /// </summary>
+    public List<string> Permissions { get; set; } = [];
+
+    /// <summary>
     /// Account creation timestamp.
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

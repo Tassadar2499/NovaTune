@@ -206,6 +206,13 @@ public class IntegrationTestsApiFactory : IAsyncLifetime
         foreach (var track in tracks)
             session.Delete(track);
 
+        // Delete all Audit Logs (for admin tests)
+        var auditLogs = await session.Query<NovaTuneApp.ApiService.Models.Admin.AuditLogEntry>()
+            .Customize(x => x.WaitForNonStaleResults())
+            .ToListAsync();
+        foreach (var log in auditLogs)
+            session.Delete(log);
+
         // Wait for indexes to process the deletions before returning
         // This ensures subsequent test operations see a clean database
         session.Advanced.WaitForIndexesAfterSaveChanges();
@@ -337,5 +344,160 @@ public class IntegrationTestsApiFactory : IAsyncLifetime
     public Raven.Client.Documents.Session.IAsyncDocumentSession OpenSession()
     {
         return _documentStore.OpenAsyncSession();
+    }
+
+    // ========================================================================
+    // Admin Test Helpers
+    // ========================================================================
+
+    /// <summary>
+    /// Creates an authenticated HTTP client for an admin user.
+    /// </summary>
+    public async Task<(HttpClient Client, string UserId)> CreateAdminClientAsync(
+        string email = "admin@example.com")
+    {
+        var client = CreateClient();
+        var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+        // Register user
+        var registerRequest = new RegisterRequest(email, "Test User", "SecurePassword123!");
+        var registerResponse = await client.PostAsJsonAsync("/auth/register", registerRequest);
+        registerResponse.EnsureSuccessStatusCode();
+
+        // Grant Admin role to the user BEFORE logging in so the JWT includes the role
+        string userId;
+        using (var session = _documentStore.OpenAsyncSession())
+        {
+            var dbUser = await session.Query<ApplicationUser>()
+                .Customize(x => x.WaitForNonStaleResults())
+                .Where(u => u.NormalizedEmail == email.ToUpperInvariant())
+                .FirstOrDefaultAsync();
+
+            if (dbUser == null)
+                throw new InvalidOperationException($"User with email {email} not found after registration");
+
+            userId = dbUser.UserId;
+            dbUser.Roles = [.. dbUser.Roles, "Admin"];
+            dbUser.Permissions = [.. dbUser.Permissions, "audit.read"];
+            await session.SaveChangesAsync();
+        }
+
+        // NOW login to get token with Admin role included
+        var loginRequest = new LoginRequest(email, "SecurePassword123!");
+        var loginResponse = await client.PostAsJsonAsync("/auth/login", loginRequest);
+        loginResponse.EnsureSuccessStatusCode();
+
+        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>(jsonOptions);
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", authResponse!.AccessToken);
+
+        return (client, userId);
+    }
+
+    /// <summary>
+    /// Grants a role to an existing user.
+    /// </summary>
+    public async Task GrantRoleAsync(string userId, string role)
+    {
+        using var session = _documentStore.OpenAsyncSession();
+        var user = await session.Query<ApplicationUser>()
+            .Customize(x => x.WaitForNonStaleResults())
+            .Where(u => u.UserId == userId)
+            .FirstOrDefaultAsync();
+
+        if (user != null && !user.Roles.Contains(role))
+        {
+            user.Roles = [.. user.Roles, role];
+            session.Advanced.WaitForIndexesAfterSaveChanges();
+            await session.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Seeds multiple test users for admin testing.
+    /// </summary>
+    public async Task<List<string>> SeedTestUsersAsync(int count)
+    {
+        var userIds = new List<string>();
+        var now = DateTime.UtcNow;
+
+        using var session = _documentStore.OpenAsyncSession();
+
+        for (int i = 0; i < count; i++)
+        {
+            var userId = Ulid.NewUlid().ToString();
+            var user = new ApplicationUser
+            {
+                Id = $"ApplicationUsers/{userId}",
+                UserId = userId,
+                Email = $"testuser{i}@example.com",
+                NormalizedEmail = $"TESTUSER{i}@EXAMPLE.COM",
+                DisplayName = $"Test User {i}",
+                Status = i % 5 == 0 ? UserStatus.Disabled : UserStatus.Active,
+                Roles = [],
+                TrackCount = Random.Shared.Next(0, 20),
+                UsedStorageBytes = Random.Shared.Next(0, 100_000_000),
+                CreatedAt = now.AddDays(-Random.Shared.Next(1, 100)),
+                LastLoginAt = i % 3 == 0 ? now.AddHours(-Random.Shared.Next(1, 48)) : null
+            };
+
+            await session.StoreAsync(user);
+            userIds.Add(userId);
+        }
+
+        session.Advanced.WaitForIndexesAfterSaveChanges();
+        await session.SaveChangesAsync();
+
+        return userIds;
+    }
+
+    /// <summary>
+    /// Seeds a test track with moderation status for admin testing.
+    /// </summary>
+    public async Task<string> SeedModeratedTrackAsync(
+        string title,
+        string userId,
+        NovaTuneApp.ApiService.Models.ModerationStatus moderationStatus,
+        TrackStatus status = TrackStatus.Ready)
+    {
+        var trackId = Ulid.NewUlid().ToString();
+        var now = DateTimeOffset.UtcNow;
+
+        var track = new Track
+        {
+            Id = $"Tracks/{trackId}",
+            TrackId = trackId,
+            UserId = userId,
+            Title = title,
+            Artist = "Test Artist",
+            Duration = TimeSpan.FromMinutes(3),
+            ObjectKey = $"audio/{trackId}.mp3",
+            FileSizeBytes = 5_000_000,
+            MimeType = "audio/mpeg",
+            Status = status,
+            ModerationStatus = moderationStatus,
+            CreatedAt = now,
+            UpdatedAt = now,
+            ProcessedAt = status == TrackStatus.Ready ? now : null
+        };
+
+        using var session = _documentStore.OpenAsyncSession();
+        await session.StoreAsync(track);
+        session.Advanced.WaitForIndexesAfterSaveChanges();
+        await session.SaveChangesAsync();
+
+        return trackId;
+    }
+
+    /// <summary>
+    /// Gets the count of audit log entries.
+    /// </summary>
+    public async Task<int> GetAuditLogCountAsync()
+    {
+        using var session = _documentStore.OpenAsyncSession();
+        return await session.Query<NovaTuneApp.ApiService.Models.Admin.AuditLogEntry>()
+            .Customize(x => x.WaitForNonStaleResults())
+            .CountAsync();
     }
 }

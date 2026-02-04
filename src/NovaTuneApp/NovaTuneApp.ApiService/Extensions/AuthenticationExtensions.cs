@@ -51,6 +51,9 @@ public static class AuthenticationExtensions
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
+                // Prevent automatic claim type transformation (e.g., "roles" to ClaimTypes.Role)
+                options.MapInboundClaims = false;
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -61,8 +64,8 @@ public static class AuthenticationExtensions
                     IssuerSigningKey = new SymmetricSecurityKey(keyProvider.SigningKey),
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero,
-                    NameClaimType = ClaimTypes.NameIdentifier,
-                    RoleClaimType = "roles"
+                    NameClaimType = "sub", // Keep original JWT claim type (no transformation)
+                    RoleClaimType = "roles" // Role claim type in our JWT
                 };
             });
 
@@ -80,6 +83,12 @@ public static class AuthenticationExtensions
 
             options.AddPolicy(PolicyNames.CanStream, policy =>
                 policy.Requirements.Add(new CanStreamRequirement()));
+
+            // Admin with audit access policy (Stage 8)
+            options.AddPolicy(PolicyNames.AdminWithAuditAccess, policy =>
+                policy.RequireAssertion(context =>
+                    context.User.HasClaim("roles", "admin") &&
+                    context.User.HasClaim("permissions", "audit.read")));
         });
 
         return builder;
