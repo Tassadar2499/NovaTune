@@ -56,7 +56,9 @@
       "mcp__chrome-devtools__click",
       "Bash(for port in 46507 42849 34135)",
       "Bash(do echo \"=== Port $port ===\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(pnpm --filter admin exec vue-tsc:*)"
     ]
   }
 }

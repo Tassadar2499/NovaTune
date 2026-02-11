@@ -37,7 +37,7 @@ async function fetchLogs() {
     if (resourceTypeFilter.value) params.set('resourceType', resourceTypeFilter.value);
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/admin/audit-logs?${params.toString()}`,
+      `${import.meta.env.VITE_API_BASE_URL || '/api'}/admin/audit-logs?${params.toString()}`,
       {
         headers: {
           Authorization: `Bearer ${auth.accessToken}`,
@@ -60,7 +60,7 @@ async function verifyIntegrity() {
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/admin/audit-logs/verify`,
+      `${import.meta.env.VITE_API_BASE_URL || '/api'}/admin/audit-logs/verify`,
       {
         method: 'POST',
         headers: {

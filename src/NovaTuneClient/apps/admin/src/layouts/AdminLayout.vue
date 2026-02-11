@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { RouterView, RouterLink } from 'vue-router';
+import { RouterView, RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
+const router = useRouter();
+
+async function handleLogout() {
+  await auth.logout();
+  router.push({ name: 'login' });
+}
 
 const navItems = [
   { path: '/', name: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -46,7 +52,7 @@ const navItems = [
             <p class="text-xs text-slate-400">Administrator</p>
           </div>
           <button
-            @click="auth.logout()"
+            @click="handleLogout"
             class="text-slate-400 hover:text-white transition-colors"
             title="Logout"
           >

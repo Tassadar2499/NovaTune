@@ -29,52 +29,54 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-slate-900">
-    <div class="w-full max-w-md px-6">
-      <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-white">NovaTune Admin</h1>
-        <p class="text-slate-400 mt-2">Sign in to access the admin panel</p>
-      </div>
+  <form @submit.prevent="handleSubmit" class="space-y-4">
+    <h2 class="text-xl font-semibold text-white mb-6">Sign In</h2>
 
-      <div class="card">
-        <form @submit.prevent="handleSubmit" class="space-y-4">
-          <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
-            {{ error }}
-          </div>
-
-          <div>
-            <label for="email" class="block text-sm font-medium text-slate-300 mb-1">Email</label>
-            <input
-              id="email"
-              v-model="email"
-              type="email"
-              required
-              class="input"
-              placeholder="admin@example.com"
-            />
-          </div>
-
-          <div>
-            <label for="password" class="block text-sm font-medium text-slate-300 mb-1">Password</label>
-            <input
-              id="password"
-              v-model="password"
-              type="password"
-              required
-              class="input"
-              placeholder="Enter your password"
-            />
-          </div>
-
-          <button
-            type="submit"
-            :disabled="isLoading"
-            class="w-full btn-primary disabled:opacity-50"
-          >
-            {{ isLoading ? 'Signing in...' : 'Sign In' }}
-          </button>
-        </form>
-      </div>
+    <div v-if="route.query.registered === 'true'" class="p-3 bg-green-900/50 border border-green-700 rounded-lg text-green-200 text-sm">
+      Account created successfully. Please sign in.
     </div>
-  </div>
+
+    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
+      {{ error }}
+    </div>
+
+    <div>
+      <label for="email" class="block text-sm font-medium text-slate-300 mb-1">Email</label>
+      <input
+        id="email"
+        v-model="email"
+        type="email"
+        required
+        class="input"
+        placeholder="admin@example.com"
+      />
+    </div>
+
+    <div>
+      <label for="password" class="block text-sm font-medium text-slate-300 mb-1">Password</label>
+      <input
+        id="password"
+        v-model="password"
+        type="password"
+        required
+        class="input"
+        placeholder="Enter your password"
+      />
+    </div>
+
+    <button
+      type="submit"
+      :disabled="isLoading"
+      class="w-full btn-primary disabled:opacity-50"
+    >
+      {{ isLoading ? 'Signing in...' : 'Sign In' }}
+    </button>
+
+    <p class="text-center text-sm text-slate-400">
+      Don't have an account?
+      <RouterLink :to="{ name: 'register' }" class="text-blue-400 hover:text-blue-300">
+        Sign up
+      </RouterLink>
+    </p>
+  </form>
 </template>

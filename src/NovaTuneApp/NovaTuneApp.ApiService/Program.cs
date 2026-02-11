@@ -75,6 +75,12 @@ try
     builder.AddNovaTuneAuthentication();
     builder.AddNovaTuneRateLimiting();
 
+    // Seed initial admin user if configured (Development)
+    if (builder.Configuration.GetSection("AdminSeed").Exists())
+    {
+        builder.Services.AddHostedService<AdminSeedService>();
+    }
+
     // ============================================================================
     // CORS Configuration (Frontend Integration)
     // ============================================================================
@@ -86,8 +92,8 @@ try
         options.AddPolicy("Development", policy =>
         {
             policy.WithOrigins(
-                "http://localhost:5173",  // Player dev server
-                "http://localhost:5174"   // Admin dev server
+                "http://localhost:25173",  // Player dev server
+                "http://localhost:25174"   // Admin dev server
             )
             .AllowAnyHeader()
             .AllowAnyMethod()

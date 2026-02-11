@@ -29,7 +29,7 @@ const isUpdating = ref(false);
 onMounted(async () => {
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/admin/users/${route.params.id}`,
+      `${import.meta.env.VITE_API_BASE_URL || '/api'}/admin/users/${route.params.id}`,
       {
         headers: {
           Authorization: `Bearer ${auth.accessToken}`,
@@ -51,7 +51,7 @@ async function updateStatus() {
   isUpdating.value = true;
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/admin/users/${user.value.id}/status`,
+      `${import.meta.env.VITE_API_BASE_URL || '/api'}/admin/users/${user.value.id}/status`,
       {
         method: 'PATCH',
         headers: {

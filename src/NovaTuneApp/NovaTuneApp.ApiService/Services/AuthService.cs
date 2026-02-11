@@ -158,7 +158,8 @@ public class AuthService : IAuthService
         return new AuthResponse(
             accessToken,
             refreshToken,
-            _tokenService.GetAccessTokenExpirationSeconds());
+            _tokenService.GetAccessTokenExpirationSeconds(),
+            new AuthUserInfo(user.UserId, user.Email, user.DisplayName, user.Roles));
     }
 
     public Task<AuthResponse> RefreshAsync(RefreshRequest request, string? deviceId, CancellationToken ct)
@@ -221,7 +222,8 @@ public class AuthService : IAuthService
         return new AuthResponse(
             accessToken,
             newRefreshToken,
-            _tokenService.GetAccessTokenExpirationSeconds());
+            _tokenService.GetAccessTokenExpirationSeconds(),
+            new AuthUserInfo(user.UserId, user.Email, user.DisplayName, user.Roles));
     }
 
     public Task LogoutAsync(string userId, string refreshToken, CancellationToken ct)

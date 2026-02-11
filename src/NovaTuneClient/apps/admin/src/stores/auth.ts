@@ -15,7 +15,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
 
   const isAuthenticated = computed(() => !!accessToken.value);
-  const isAdmin = computed(() => user.value?.roles.includes('Admin') ?? false);
+  const isAdmin = computed(() => user.value?.roles?.includes('Admin') ?? false);
   const deviceId = getOrCreateDeviceId();
 
   async function login(email: string, password: string) {
@@ -33,7 +33,7 @@ export const useAuthStore = defineStore('auth', () => {
     const data = await response.json();
 
     // Check if user has admin role
-    if (!data.user.roles.includes('Admin')) {
+    if (!data.user?.roles?.includes('Admin')) {
       throw new Error('Admin access required');
     }
 
@@ -42,6 +42,22 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = data.user;
 
     localStorage.setItem('admin_refresh_token', data.refreshToken);
+  }
+
+  async function register(email: string, password: string, displayName: string) {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetch(`${apiBase}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, displayName }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.message || 'Registration failed');
+    }
+
+    return await response.json();
   }
 
   async function refreshTokens() {
@@ -63,6 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
     const data = await response.json();
     accessToken.value = data.accessToken;
     refreshToken.value = data.refreshToken;
+    user.value = data.user ?? null;
     localStorage.setItem('admin_refresh_token', data.refreshToken);
   }
 
@@ -92,6 +109,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     deviceId,
     login,
+    register,
     refreshTokens,
     logout,
   };

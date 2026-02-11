@@ -32,7 +32,7 @@ async function fetchTracks() {
     if (statusFilter.value) params.set('status', statusFilter.value);
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/admin/tracks?${params.toString()}`,
+      `${import.meta.env.VITE_API_BASE_URL || '/api'}/admin/tracks?${params.toString()}`,
       {
         headers: {
           Authorization: `Bearer ${auth.accessToken}`,

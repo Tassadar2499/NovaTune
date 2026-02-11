@@ -16,7 +16,7 @@ const isLoading = ref(true);
 
 onMounted(async () => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/analytics/overview`, {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/admin/analytics/overview`, {
       headers: {
         Authorization: `Bearer ${auth.accessToken}`,
       },
