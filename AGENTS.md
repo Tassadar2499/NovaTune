@@ -1,38 +1,56 @@
 # Repository Guidelines
 
-## Project Structure & Modules
-- `src/NovaTuneApp/NovaTuneApp.AppHost`: Aspire host that wires the API and web app together for local runs.
-- `src/NovaTuneApp/NovaTuneApp.ApiService`: Core API/domain models; validation attributes live here.
-- `src/NovaTuneApp/NovaTuneApp.Web`: ASP.NET Core front end; UI components in `Components/`, static assets in `wwwroot/`, configuration in `appsettings*.json`.
-- `src/NovaTuneApp/NovaTuneApp.ServiceDefaults`: Shared service defaults (logging, hosting).
-- Tests: unit specs in `src/unit_tests/` (xUnit + Shouldly); integration stubs in `src/integration_tests/`; functional/component test folders are reserved for future suites.
-- Docs: high-level notes live in `doc/`; repository guide is `AGENTS.md`.
+## Project Structure & Module Organization
+- `src/NovaTuneApp/` contains the .NET solution (`NovaTuneApp.sln`).
+- Core backend projects:
+  - `NovaTuneApp.ApiService`: API endpoints, domain models, validation, and services.
+  - `NovaTuneApp.AppHost`: .NET Aspire composition for local orchestration.
+  - `NovaTuneApp.ServiceDefaults`: shared hosting/logging defaults.
+  - `NovaTuneApp.Workers.*`: background workers (`AudioProcessor`, `UploadIngestor`, `Lifecycle`, `Telemetry`).
+  - `NovaTuneApp.Web`: ASP.NET Core web host and static assets.
+- Frontend workspace: `src/NovaTuneClient/` (`apps/admin`, `apps/player`, shared `packages/*`).
+- Tests:
+  - .NET unit tests in `src/unit_tests/`
+  - .NET integration tests in `src/integration_tests/`
+  - Reserved folders: `src/component_tests/`, `src/functional_tests/`
+- Docs live in `doc/`.
 
 ## Build, Test, and Development Commands
-- Restore deps: `dotnet restore src/NovaTuneApp/NovaTuneApp.sln`
-- Build all projects: `dotnet build src/NovaTuneApp/NovaTuneApp.sln -c Release`
-- Run the composed app: `dotnet run --project src/NovaTuneApp/NovaTuneApp.AppHost/NovaTuneApp.AppHost.csproj`
-- Run only the web front end: `dotnet run --project src/NovaTuneApp/NovaTuneApp.Web/NovaTuneApp.Web.csproj`
-- Execute tests: `dotnet test src/NovaTuneApp/NovaTuneApp.sln -c Debug`
+- Restore/build .NET:
+  - `dotnet restore src/NovaTuneApp/NovaTuneApp.sln`
+  - `dotnet build src/NovaTuneApp/NovaTuneApp.sln -c Release`
+- Run backend stack:
+  - `dotnet run --project src/NovaTuneApp/NovaTuneApp.AppHost/NovaTuneApp.AppHost.csproj`
+- Run .NET tests:
+  - `dotnet test src/NovaTuneApp/NovaTuneApp.sln -c Debug`
+- Frontend workspace (`src/NovaTuneClient`):
+  - `pnpm dev:admin` / `pnpm dev:player`
+  - `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm typecheck`
 
-## Coding Style & Naming
-- Indent with 4 spaces; LF line endings; UTF-8; final newline (see `.editorconfig`).
-- Allman braces; prefer `var` when the type is apparent.
-- Constants and static readonly fields use PascalCase; private instance fields use `_camelCase`.
-- Enable nullable reference warnings; treat CS8600–CS8604 as errors.
-- JSON/YAML files use 2-space indents. Avoid trailing whitespace; Markdown may retain it for formatting.
+## Coding Style & Naming Conventions
+- Follow `.editorconfig`: 4-space indent, LF, UTF-8, final newline.
+- C# uses Allman braces and prefers `var` when type is obvious.
+- Naming:
+  - constants/static readonly: `PascalCase`
+  - private instance fields: `_camelCase`
+- Nullable safety is strict; CS8600-CS8604 are treated as errors.
+- Use 2-space indentation for JSON/YAML.
 
 ## Testing Guidelines
-- Frameworks: xUnit with Shouldly assertions.
-- Test file pattern: `*Tests.cs` grouped by subject (e.g., `Models/TrackTests.cs`).
-- Name tests in behavior style: `Should_<expected_behavior>()`.
-- Add unit coverage for new domain rules; prefer integration tests under `src/integration_tests/` when exercising the Aspire host. Keep tests deterministic and data-independent.
+- .NET tests use xUnit + Shouldly.
+- Name files `*Tests.cs`; use behavior-style test names (for example, `Should_Reject_InvalidMetadata()`).
+- Keep tests deterministic and isolated; add coverage for new domain logic and endpoint validation.
 
 ## Commit & Pull Request Guidelines
-- Commit messages follow the recent history: imperative, present tense, capitalized first word; keep them concise (e.g., “Add validation for track metadata”).
-- PRs should include: summary of change, testing notes (`dotnet test` output or failures), linked issue/clubhouse ticket if applicable, and screenshots or cURL snippets for UI/API changes.
-- Keep PRs small and focused; separate refactors from feature work when practical. Request review once the branch builds and tests are clean locally.
+- Commit messages should be imperative, present tense, and concise (for example, `Add telemetry aggregation endpoint`).
+- PRs should include:
+  - change summary
+  - test evidence (`dotnet test`, `pnpm test`, etc.)
+  - linked issue/ticket (if available)
+  - screenshots or API examples for UI/contract changes
+- Keep PRs focused; avoid mixing refactors with feature work.
 
 ## Security & Configuration Tips
-- Do not commit secrets or connection strings; prefer user secrets or environment variables over editing `appsettings*.json`.
-- When adding new endpoints, ensure validation attributes cover required fields to keep model binding consistent with existing tests. 
+- Do not commit secrets, credentials, or connection strings.
+- Prefer environment variables and local secrets over editing committed config files.
+- Add validation attributes for new request models to keep model binding and tests consistent.
