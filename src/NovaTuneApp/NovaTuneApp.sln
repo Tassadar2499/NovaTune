@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# 
+#
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaTuneApp.AppHost", "NovaTuneApp.AppHost\NovaTuneApp.AppHost.csproj", "{1401DAB1-AE9F-4849-A4FA-3E02B412036C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaTuneApp.ServiceDefaults", "NovaTuneApp.ServiceDefaults\NovaTuneApp.ServiceDefaults.csproj", "{D60CF82B-8AE5-4065-B6E8-311DE473E7EA}"
@@ -28,6 +28,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaTuneApp.Workers.Lifecycle", "NovaTuneApp.Workers.Lifecycle\NovaTuneApp.Workers.Lifecycle.csproj", "{9F493047-68CB-4F9C-90C8-C03988D94454}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovaTuneApp.Workers.Telemetry", "NovaTuneApp.Workers.Telemetry\NovaTuneApp.Workers.Telemetry.csproj", "{3E2EA581-990C-430C-AC6B-3F2521A1C065}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ui_tests", "ui_tests", "{5274C3EE-17E6-4E94-B417-2DA03947634D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
