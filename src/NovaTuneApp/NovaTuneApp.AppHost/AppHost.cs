@@ -31,20 +31,30 @@ var database = ravenServer.AddDatabase("novatune");
 
 if (isTesting)
 {
-    // Integration tests only need the API + core persistence. Keeping the graph small makes startup
-    // deterministic and avoids 3+ minute cold-starts (e.g., Kafka/MinIO image pulls).
+    // MinIO for upload integration tests (default credentials, random port)
+    var storage = builder.AddContainer("storage", "minio/minio")
+        .WithVolume("minio-data-test", "/data")
+        .WithHttpEndpoint(targetPort: 9000, name: "api")
+        .WithEnvironment("MINIO_ROOT_USER", "minioadmin")
+        .WithEnvironment("MINIO_ROOT_PASSWORD", "minioadmin")
+        .WithArgs("server", "/data")
+        .WithHttpHealthCheck("/minio/health/live", endpointName: "api");
+
     builder.AddProject<Projects.NovaTuneApp_ApiService>("apiservice")
         .WithReference(cache)
         .WaitFor(cache)
         .WithReference(database)
         .WaitFor(database)
+        .WithReference(storage.GetEndpoint("api"))
+        .WaitFor(storage)
+        .WithEnvironment("ConnectionStrings__storage", storage.GetEndpoint("api"))
         .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Testing")
         .WithEnvironment("DOTNET_ENVIRONMENT", "Testing")
         .WithEnvironment("NovaTune__CacheEncryption__Enabled", "false")
         .WithEnvironment("NovaTune__TopicPrefix", "testing")
         .WithEnvironment("Kafka__TopicPrefix", "test")
         .WithEnvironment("Features__MessagingEnabled", "false")
-        .WithEnvironment("Features__StorageEnabled", "false")
+        .WithEnvironment("Features__StorageEnabled", "true")
         .WithHttpHealthCheck(path: "/health", endpointName: "http");
 }
 else

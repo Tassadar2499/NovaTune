@@ -6,6 +6,8 @@ using Microsoft.Extensions.Configuration;
 using NovaTuneApp.ApiService.Models;
 using NovaTuneApp.ApiService.Models.Auth;
 using NovaTuneApp.ApiService.Models.Identity;
+using NovaTuneApp.ApiService.Models.Playlists;
+using NovaTuneApp.ApiService.Models.Upload;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Linq;
 using Raven.Client.Documents.Operations;
@@ -206,6 +208,20 @@ public class IntegrationTestsApiFactory : IAsyncLifetime
         foreach (var track in tracks)
             session.Delete(track);
 
+        // Delete all Playlists
+        var playlists = await session.Query<Playlist>()
+            .Customize(x => x.WaitForNonStaleResults())
+            .ToListAsync();
+        foreach (var playlist in playlists)
+            session.Delete(playlist);
+
+        // Delete all UploadSessions
+        var uploadSessions = await session.Query<UploadSession>()
+            .Customize(x => x.WaitForNonStaleResults())
+            .ToListAsync();
+        foreach (var uploadSession in uploadSessions)
+            session.Delete(uploadSession);
+
         // Delete all Audit Logs (for admin tests)
         var auditLogs = await session.Query<NovaTuneApp.ApiService.Models.Admin.AuditLogEntry>()
             .Customize(x => x.WaitForNonStaleResults())
@@ -345,6 +361,200 @@ public class IntegrationTestsApiFactory : IAsyncLifetime
     {
         return _documentStore.OpenAsyncSession();
     }
+
+    // ========================================================================
+    // Playlist Test Helpers
+    // ========================================================================
+
+    /// <summary>
+    /// Seeds a test playlist in the database.
+    /// </summary>
+    /// <param name="name">Playlist name.</param>
+    /// <param name="userId">User ID who owns the playlist.</param>
+    /// <param name="description">Optional description.</param>
+    /// <param name="tracks">Optional list of track entries.</param>
+    /// <returns>The playlist ID (ULID).</returns>
+    public async Task<string> SeedPlaylistAsync(
+        string name,
+        string userId,
+        string? description = null,
+        List<PlaylistTrackEntry>? tracks = null)
+    {
+        var playlistId = Ulid.NewUlid().ToString();
+        var now = DateTimeOffset.UtcNow;
+        var trackList = tracks ?? [];
+
+        var playlist = new Playlist
+        {
+            Id = $"Playlists/{playlistId}",
+            PlaylistId = playlistId,
+            UserId = userId,
+            Name = name,
+            Description = description,
+            Tracks = trackList,
+            TrackCount = trackList.Count,
+            TotalDuration = TimeSpan.Zero,
+            Visibility = PlaylistVisibility.Private,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        using var session = _documentStore.OpenAsyncSession();
+        await session.StoreAsync(playlist);
+        session.Advanced.WaitForIndexesAfterSaveChanges();
+        await session.SaveChangesAsync();
+
+        return playlistId;
+    }
+
+    /// <summary>
+    /// Seeds a playlist with real track documents.
+    /// </summary>
+    /// <param name="name">Playlist name.</param>
+    /// <param name="userId">User ID who owns the playlist and tracks.</param>
+    /// <param name="trackCount">Number of tracks to seed.</param>
+    /// <returns>The playlist ID and list of track IDs.</returns>
+    public async Task<(string PlaylistId, List<string> TrackIds)> SeedPlaylistWithTracksAsync(
+        string name,
+        string userId,
+        int trackCount)
+    {
+        var trackIds = new List<string>();
+        var trackEntries = new List<PlaylistTrackEntry>();
+        var totalDuration = TimeSpan.Zero;
+
+        for (int i = 0; i < trackCount; i++)
+        {
+            var trackId = await SeedTrackAsync($"Track {i + 1}", $"Artist {i + 1}", userId);
+            trackIds.Add(trackId);
+
+            var trackDuration = TimeSpan.FromMinutes(3) + TimeSpan.FromSeconds(i * 10);
+            totalDuration += trackDuration;
+
+            trackEntries.Add(new PlaylistTrackEntry
+            {
+                Position = i,
+                TrackId = trackId,
+                AddedAt = DateTimeOffset.UtcNow
+            });
+
+            // Small delay to ensure distinct timestamps
+            await Task.Delay(10);
+        }
+
+        var playlistId = Ulid.NewUlid().ToString();
+        var now = DateTimeOffset.UtcNow;
+
+        var playlist = new Playlist
+        {
+            Id = $"Playlists/{playlistId}",
+            PlaylistId = playlistId,
+            UserId = userId,
+            Name = name,
+            Tracks = trackEntries,
+            TrackCount = trackEntries.Count,
+            TotalDuration = totalDuration,
+            Visibility = PlaylistVisibility.Private,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        using var session = _documentStore.OpenAsyncSession();
+        await session.StoreAsync(playlist);
+        session.Advanced.WaitForIndexesAfterSaveChanges();
+        await session.SaveChangesAsync();
+
+        return (playlistId, trackIds);
+    }
+
+    /// <summary>
+    /// Gets a playlist by ID for test verification.
+    /// </summary>
+    public async Task<Playlist?> GetPlaylistByIdAsync(string playlistId)
+    {
+        using var session = _documentStore.OpenAsyncSession();
+        return await session.LoadAsync<Playlist>($"Playlists/{playlistId}");
+    }
+
+    /// <summary>
+    /// Gets the count of playlists for a user.
+    /// </summary>
+    public async Task<int> GetPlaylistCountAsync(string userId)
+    {
+        using var session = _documentStore.OpenAsyncSession();
+        return await session.Query<Playlist>()
+            .Customize(x => x.WaitForNonStaleResults())
+            .Where(p => p.UserId == userId)
+            .CountAsync();
+    }
+
+    // ========================================================================
+    // Upload Session Test Helpers
+    // ========================================================================
+
+    /// <summary>
+    /// Gets an upload session by ID for test verification.
+    /// </summary>
+    public async Task<UploadSession?> GetUploadSessionByIdAsync(string uploadId)
+    {
+        using var session = _documentStore.OpenAsyncSession();
+        return await session.LoadAsync<UploadSession>($"UploadSessions/{uploadId}");
+    }
+
+    // ========================================================================
+    // Audio File Test Helpers
+    // ========================================================================
+
+    /// <summary>
+    /// Describes a test audio file with its metadata.
+    /// </summary>
+    public record TestAudioFile(string FileName, string FilePath, string MimeType, long FileSizeBytes);
+
+    /// <summary>
+    /// Walks up from the application base directory to find the repository root
+    /// (the directory containing NovaTuneApp.sln).
+    /// </summary>
+    private static string GetSolutionRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "src", "NovaTuneApp", "NovaTuneApp.sln")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+
+        throw new InvalidOperationException(
+            "Could not find repository root (looked for src/NovaTuneApp/NovaTuneApp.sln above " +
+            AppContext.BaseDirectory + ")");
+    }
+
+    private static string ExamplesDirectory =>
+        Path.Combine(GetSolutionRoot(), "src", "integration_tests",
+            "NovaTuneApp.IntegrationTests", "examples");
+
+    public static TestAudioFile BurnTheTowers => new(
+        "\ud83c\udf99\ufe0f Kerry Eurodyne (Zero Tool)  \u2014 Burn the Towers (Cyberpunk 2077) [2rR6TxokG9E].mp3",
+        Path.Combine(ExamplesDirectory,
+            "\ud83c\udf99\ufe0f Kerry Eurodyne (Zero Tool)  \u2014 Burn the Towers (Cyberpunk 2077) [2rR6TxokG9E].mp3"),
+        "audio/mpeg",
+        4_413_068);
+
+    public static TestAudioFile EncoreInHell => new(
+        "\ud83c\udf99\ufe0f Kerry Eurodyne (Zero Tool)  \u2014 Encore in Hell (Cyberpunk 2077) [ULPhOuewHh4].mp3",
+        Path.Combine(ExamplesDirectory,
+            "\ud83c\udf99\ufe0f Kerry Eurodyne (Zero Tool)  \u2014 Encore in Hell (Cyberpunk 2077) [ULPhOuewHh4].mp3"),
+        "audio/mpeg",
+        4_674_692);
+
+    public static TestAudioFile GlitchInTheSystem => new(
+        "\ud83c\udf99\ufe0f Kerry Eurodyne (Zero Tool vs Han Oomori)  \u2014 Glitch in the System (Cyberpunk 2077) [yQy9VbgATuw].mp3",
+        Path.Combine(ExamplesDirectory,
+            "\ud83c\udf99\ufe0f Kerry Eurodyne (Zero Tool vs Han Oomori)  \u2014 Glitch in the System (Cyberpunk 2077) [yQy9VbgATuw].mp3"),
+        "audio/mpeg",
+        4_500_044);
+
+    public static TestAudioFile[] AllTestAudioFiles => [BurnTheTowers, EncoreInHell, GlitchInTheSystem];
 
     // ========================================================================
     // Admin Test Helpers

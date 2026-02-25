@@ -33,13 +33,6 @@ public class MinioInitializationService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        // Skip initialization in testing environment where storage may not be available
-        if (_environment.IsEnvironment("Testing"))
-        {
-            _logger.LogInformation("Skipping MinIO initialization in Testing environment");
-            return;
-        }
-
         var minioOptions = _options.Value.Minio;
         var bucketName = minioOptions.AudioBucketName;
 

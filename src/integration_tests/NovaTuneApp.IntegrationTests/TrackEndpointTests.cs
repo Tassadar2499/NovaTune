@@ -40,6 +40,27 @@ public class TrackEndpointTests : IAsyncLifetime
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Retry helper for requests that may hit shared rate limits.
+    /// Rate limiters run before authentication, so all test users share the "anonymous" partition.
+    /// </summary>
+    private static async Task<HttpResponseMessage> RetryOnRateLimitAsync(Func<Task<HttpResponseMessage>> action, int maxRetries = 3)
+    {
+        HttpResponseMessage response = null!;
+        for (int i = 0; i <= maxRetries; i++)
+        {
+            response = await action();
+            if (response.StatusCode != HttpStatusCode.TooManyRequests || i == maxRetries)
+                return response;
+            await Task.Delay(11_000); // Wait for rate limit segment (10s) to slide
+        }
+        return response;
+    }
+
+    private const string ListTracksSkipReason =
+        "ListTracks queries Tracks_ByUserForSearch index — 500/503 in integration tests due to " +
+        "circuit breaker (30s break) interaction with index timing between test/API document stores";
+
     // ========================================================================
     // GET /tracks Tests
     // ========================================================================
@@ -62,13 +83,11 @@ public class TrackEndpointTests : IAsyncLifetime
     // and API service document stores causes timing issues.
     // Consider running these tests separately or with retry logic.
 
-    [Fact(Skip = "ListTracks uses Tracks_ByUserForSearch index - timing issues with test/API store consistency")]
+    [Fact(Skip = ListTracksSkipReason)]
     public async Task ListTracks_Should_return_empty_list_when_no_tracks()
     {
-        // Act
         var response = await _client.GetAsync("/tracks");
 
-        // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var result = await response.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
         result.ShouldNotBeNull();
@@ -78,18 +97,14 @@ public class TrackEndpointTests : IAsyncLifetime
         result.NextCursor.ShouldBeNull();
     }
 
-    [Fact(Skip = "ListTracks uses Tracks_ByUserForSearch index - timing issues with test/API store consistency")]
+    [Fact(Skip = ListTracksSkipReason)]
     public async Task ListTracks_Should_return_only_users_own_tracks()
     {
-        // Arrange - seed tracks for test user and another user
         await _factory.SeedTrackAsync("My Track 1", "Artist 1", _userId);
         await _factory.SeedTrackAsync("My Track 2", "Artist 2", _userId);
         await _factory.SeedTrackAsync("Other User Track", "Artist", "other-user-id");
 
-        // Act
         var response = await _client.GetAsync("/tracks");
-
-        // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var result = await response.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
         result.ShouldNotBeNull();
@@ -98,16 +113,12 @@ public class TrackEndpointTests : IAsyncLifetime
         result.Items.ShouldAllBe(t => t.Title.StartsWith("My Track"));
     }
 
-    [Fact(Skip = "ListTracks uses Tracks_ByUserForSearch index - timing issues with test/API store consistency")]
+    [Fact(Skip = ListTracksSkipReason)]
     public async Task ListTracks_Should_return_paged_results()
     {
-        // Arrange - seed 5 tracks
         await _factory.SeedTestTracksAsync(5, _userId);
 
-        // Act - request first 3
         var response = await _client.GetAsync("/tracks?limit=3");
-
-        // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var result = await response.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
         result.ShouldNotBeNull();
@@ -117,18 +128,19 @@ public class TrackEndpointTests : IAsyncLifetime
         result.NextCursor.ShouldNotBeNullOrEmpty();
     }
 
-    [Fact(Skip = "ListTracks uses Tracks_ByUserForSearch index - timing issues with test/API store consistency")]
+    [Fact(Skip = ListTracksSkipReason)]
     public async Task ListTracks_Should_continue_with_cursor()
     {
-        // Arrange - seed 10 tracks
         await _factory.SeedTestTracksAsync(10, _userId);
 
-        // Act - get first page
         var firstResponse = await _client.GetAsync("/tracks?limit=5");
+        firstResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         var firstPage = await firstResponse.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
+        firstPage.ShouldNotBeNull();
+        firstPage.Items.Count.ShouldBe(5);
 
         // Act - get second page with cursor
-        var secondResponse = await _client.GetAsync($"/tracks?limit=5&cursor={firstPage!.NextCursor}");
+        var secondResponse = await _client.GetAsync($"/tracks?limit=5&cursor={firstPage.NextCursor}");
         var secondPage = await secondResponse.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
 
         // Assert
@@ -141,20 +153,18 @@ public class TrackEndpointTests : IAsyncLifetime
         secondPage.Items.ShouldAllBe(t => !firstPageIds.Contains(t.TrackId));
     }
 
-    [Fact(Skip = "ListTracks uses Tracks_ByUserForSearch index - timing issues with test/API store consistency")]
+    [Fact(Skip = ListTracksSkipReason)]
     public async Task ListTracks_Should_filter_by_search()
     {
-        // Arrange
         await _factory.SeedTrackAsync("Unique Song Name", "Artist A", _userId);
         await _factory.SeedTrackAsync("Another Track", "Unique Artist", _userId);
         await _factory.SeedTrackAsync("Regular Track", "Regular Artist", _userId);
 
-        // Act
         var response = await _client.GetAsync("/tracks?search=Unique");
+        var result = await response.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var result = await response.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
         result.ShouldNotBeNull();
         result.Items.Count.ShouldBe(2);
         result.Items.ShouldAllBe(t =>
@@ -162,40 +172,35 @@ public class TrackEndpointTests : IAsyncLifetime
             (t.Artist != null && t.Artist.Contains("Unique", StringComparison.OrdinalIgnoreCase)));
     }
 
-    [Fact(Skip = "ListTracks uses Tracks_ByUserForSearch index - timing issues with test/API store consistency")]
+    [Fact(Skip = ListTracksSkipReason)]
     public async Task ListTracks_Should_exclude_deleted_by_default()
     {
-        // Arrange
         var activeTrackId = await _factory.SeedTrackAsync("Active Track", "Artist", _userId);
         var deletedTrackId = await _factory.SeedTrackAsync("Deleted Track", "Artist", _userId);
-        // Delete the track
         await _client.DeleteAsync($"/tracks/{deletedTrackId}");
 
-        // Act
         var response = await _client.GetAsync("/tracks");
+        var result = await response.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var result = await response.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
         result.ShouldNotBeNull();
         result.Items.Count.ShouldBe(1);
         result.Items[0].TrackId.ShouldBe(activeTrackId);
     }
 
-    [Fact(Skip = "ListTracks uses Tracks_ByUserForSearch index - timing issues with test/API store consistency")]
+    [Fact(Skip = ListTracksSkipReason)]
     public async Task ListTracks_Should_include_deleted_when_requested()
     {
-        // Arrange
         await _factory.SeedTrackAsync("Active Track", "Artist", _userId);
         var deletedTrackId = await _factory.SeedTrackAsync("Deleted Track", "Artist", _userId);
         await _client.DeleteAsync($"/tracks/{deletedTrackId}");
 
-        // Act
         var response = await _client.GetAsync("/tracks?includeDeleted=true");
+        var result = await response.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var result = await response.Content.ReadFromJsonAsync<PagedResult<TrackListItem>>(_jsonOptions);
         result.ShouldNotBeNull();
         result.Items.Count.ShouldBe(2);
         result.Items.ShouldContain(t => t.TrackId == deletedTrackId);
@@ -426,8 +431,8 @@ public class TrackEndpointTests : IAsyncLifetime
         // Arrange
         var trackId = await _factory.SeedTrackAsync("Track to Delete", "Artist", _userId);
 
-        // Act
-        var response = await _client.DeleteAsync($"/tracks/{trackId}");
+        // Act (with rate limit retry — all tests share "anonymous" partition)
+        var response = await RetryOnRateLimitAsync(() => _client.DeleteAsync($"/tracks/{trackId}"));
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -471,10 +476,11 @@ public class TrackEndpointTests : IAsyncLifetime
     {
         // Arrange
         var trackId = await _factory.SeedTrackAsync("Track", "Artist", _userId);
-        await _client.DeleteAsync($"/tracks/{trackId}");
+        var firstDelete = await RetryOnRateLimitAsync(() => _client.DeleteAsync($"/tracks/{trackId}"));
+        firstDelete.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         // Act - try to delete again
-        var response = await _client.DeleteAsync($"/tracks/{trackId}");
+        var response = await RetryOnRateLimitAsync(() => _client.DeleteAsync($"/tracks/{trackId}"));
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -492,7 +498,8 @@ public class TrackEndpointTests : IAsyncLifetime
     {
         // Arrange
         var trackId = await _factory.SeedTrackAsync("Track", "Artist", _userId);
-        await _client.DeleteAsync($"/tracks/{trackId}");
+        var delResponse = await RetryOnRateLimitAsync(() => _client.DeleteAsync($"/tracks/{trackId}"));
+        delResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         // Act
         var response = await _client.PostAsync($"/tracks/{trackId}/restore", null);

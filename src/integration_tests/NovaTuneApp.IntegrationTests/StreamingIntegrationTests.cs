@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using NovaTuneApp.ApiService.Endpoints;
+using NovaTuneApp.ApiService.Models;
 using NovaTuneApp.ApiService.Models.Auth;
 
 namespace NovaTuneApp.Tests;
@@ -263,18 +264,45 @@ public class StreamingIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Stream_endpoint_Should_return_409_for_processing_track()
     {
-        // This test would require creating a track in Processing status
-        // Without the upload pipeline, we document the expected behavior
-        // Expected: 409 Conflict with "track-not-ready" error type
+        // Arrange - create a user and seed a track with Processing status
+        var (client, userId) = await _factory.CreateAuthenticatedClientWithUserAsync(
+            $"stream-processing-{Guid.NewGuid():N}@test.com");
+        var trackId = await _factory.SeedTrackAsync("Processing Track",
+            userId: userId, status: TrackStatus.Processing);
+
+        // Act - attempt to stream a track that is still processing
+        var response = await client.PostAsync($"/tracks/{trackId}/stream", null);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(_jsonOptions);
+        problem.ShouldNotBeNull();
+        problem.Type!.ShouldContain("track-not-ready");
+
+        client.Dispose();
     }
 
     [Fact]
     public async Task Stream_endpoint_Should_return_403_for_other_users_track()
     {
-        // This test would require:
-        // 1. User A uploads a track
-        // 2. User B tries to stream User A's track
-        // Expected: 403 Forbidden
+        // Arrange - create two users and seed a Ready track owned by user A
+        var (clientA, userA) = await _factory.CreateAuthenticatedClientWithUserAsync(
+            $"stream-a-{Guid.NewGuid():N}@test.com");
+        var (clientB, userB) = await _factory.CreateAuthenticatedClientWithUserAsync(
+            $"stream-b-{Guid.NewGuid():N}@test.com");
+        var trackId = await _factory.SeedTrackAsync("User A Track", userId: userA);
+
+        // Act - user B tries to stream user A's track
+        var response = await clientB.PostAsync($"/tracks/{trackId}/stream", null);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(_jsonOptions);
+        problem.ShouldNotBeNull();
+        problem.Type!.ShouldContain("forbidden");
+
+        clientA.Dispose();
+        clientB.Dispose();
     }
 
     // ========================================================================

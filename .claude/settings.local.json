@@ -59,7 +59,10 @@
       "Bash(done)",
       "Bash(npx vue-tsc:*)",
       "Bash(pnpm --filter admin exec vue-tsc:*)",
-      "Bash(git -C /home/tassadar/Documents/GitHub/NovaTune log --oneline -20)"
+      "Bash(git -C /home/tassadar/Documents/GitHub/NovaTune log --oneline -20)",
+      "Bash(wc:*)",
+      "Bash(file:*)",
+      "Bash(python3:*)"
     ]
   }
 }
