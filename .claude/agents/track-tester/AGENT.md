@@ -138,6 +138,6 @@ dotnet test --collect:"XPlat Code Coverage"
 - [ ] All error conditions tested
 - [ ] Edge cases (empty list, single item, max page size)
 - [ ] Concurrency scenarios (optimistic locking)
-- [ ] Soft-delete → restore → delete cycle
+- [ ] Soft-delete -> restore -> delete cycle
 - [ ] Grace period boundary conditions
 - [ ] Rate limiting not tested in unit tests (integration only)

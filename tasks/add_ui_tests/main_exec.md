@@ -1,5 +1,7 @@
 # UI Tests Executable Implementation Plan (C# + Selenium + xUnit)
 
+Execute phases sequentially (0 through 6). Each phase lists the exact files to create or modify, the code to write, and acceptance criteria. Do not proceed to the next phase until the current one passes its acceptance check.
+
 ## Task Summary
 
 Implement UI tests in `src/ui_tests/NovaTuneApp.UiTests` using C#, Selenium WebDriver, and xUnit for the NovaTune player and admin Vue SPAs. The tests exercise real browser flows against an Aspire-hosted backend with Vite dev servers for the frontends.
@@ -28,11 +30,32 @@ Implement UI tests in `src/ui_tests/NovaTuneApp.UiTests` using C#, Selenium WebD
 
 ## Phase 0: Add `data-testid` Attributes to Vue Components
 
-Before writing any C# code, add stable test selectors to the four auth pages and key layout elements.
+Before writing any C# code, add stable test selectors to the auth pages, error states, and key layout elements.
+
+### File: `src/NovaTuneClient/apps/player/src/features/auth/LoginPage.vue`
+
+Already has `data-testid` on email, password, and login-button. Add `data-testid` to the error div (line 35):
+
+```diff
+-    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
++    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm" data-testid="error-message">
+```
 
 ### File: `src/NovaTuneClient/apps/player/src/features/auth/RegisterPage.vue`
 
-Add `data-testid` to each input and the submit button. Current template (lines 46-107) — apply these changes:
+Add `data-testid` to each input, the submit button, and the error div:
+
+```diff
+     <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
++      data-testid="error-message"
+```
+
+Wait — the error div needs the attribute on the opening tag:
+
+```diff
+-    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
++    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm" data-testid="error-message">
+```
 
 ```diff
       <input
@@ -84,17 +107,32 @@ Add `data-testid` to each input and the submit button. Current template (lines 4
 ```
 
 ```diff
-    <button
-      type="submit"
-      :disabled="isLoading"
-      class="w-full btn-primary disabled:opacity-50"
+-   <button
+-     type="submit"
+-     :disabled="isLoading"
+-     class="w-full btn-primary disabled:opacity-50"
+-   >
++   <button
++     type="submit"
++     :disabled="isLoading"
++     class="w-full btn-primary disabled:opacity-50"
 +     data-testid="register-button"
-    >
++   >
 ```
 
 ### File: `src/NovaTuneClient/apps/admin/src/features/auth/AdminLoginPage.vue`
 
-Add `data-testid` to email, password, and submit button. Current template (lines 43-73):
+Add `data-testid` to email, password, submit button, error div, and success banner:
+
+```diff
+-    <div v-if="route.query.registered === 'true'" class="p-3 bg-green-900/50 border border-green-700 rounded-lg text-green-200 text-sm">
++    <div v-if="route.query.registered === 'true'" class="p-3 bg-green-900/50 border border-green-700 rounded-lg text-green-200 text-sm" data-testid="success-message">
+```
+
+```diff
+-    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
++    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm" data-testid="error-message">
+```
 
 ```diff
       <input
@@ -121,33 +159,103 @@ Add `data-testid` to email, password, and submit button. Current template (lines
 ```
 
 ```diff
-    <button
-      type="submit"
-      :disabled="isLoading"
-      class="w-full btn-primary disabled:opacity-50"
+-   <button
+-     type="submit"
+-     :disabled="isLoading"
+-     class="w-full btn-primary disabled:opacity-50"
+-   >
++   <button
++     type="submit"
++     :disabled="isLoading"
++     class="w-full btn-primary disabled:opacity-50"
 +     data-testid="login-button"
-    >
++   >
 ```
 
 ### File: `src/NovaTuneClient/apps/admin/src/features/auth/AdminRegisterPage.vue`
 
-Same pattern as player register:
+Add `data-testid` to all inputs, submit button, and error div:
 
 ```diff
-      <input id="displayName" ... data-testid="displayName" />
-      <input id="email" ... data-testid="email" />
-      <input id="password" ... data-testid="password" />
-      <input id="confirmPassword" ... data-testid="confirmPassword" />
-      <button type="submit" ... data-testid="register-button">
+-    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
++    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm" data-testid="error-message">
+```
+
+```diff
+      <input
+        id="displayName"
+        v-model="displayName"
+        type="text"
+        required
+        class="input"
+        placeholder="Your name"
++       data-testid="displayName"
+      />
+```
+
+```diff
+      <input
+        id="email"
+        v-model="email"
+        type="email"
+        required
+        class="input"
+        placeholder="you@example.com"
++       data-testid="email"
+      />
+```
+
+```diff
+      <input
+        id="password"
+        v-model="password"
+        type="password"
+        required
+        minlength="8"
+        class="input"
+        placeholder="At least 8 characters"
++       data-testid="password"
+      />
+```
+
+```diff
+      <input
+        id="confirmPassword"
+        v-model="confirmPassword"
+        type="password"
+        required
+        class="input"
+        placeholder="Confirm your password"
++       data-testid="confirmPassword"
+      />
+```
+
+```diff
+-   <button
+-     type="submit"
+-     :disabled="isLoading"
+-     class="w-full btn-primary disabled:opacity-50"
+-   >
++   <button
++     type="submit"
++     :disabled="isLoading"
++     class="w-full btn-primary disabled:opacity-50"
++     data-testid="register-button"
++   >
 ```
 
 ### File: `src/NovaTuneClient/apps/player/src/features/library/LibraryPage.vue`
 
-Add a `data-testid` to the heading and track list container:
+Add `data-testid` to the heading, empty state, and track list container:
 
 ```diff
 -     <h1 class="text-2xl font-bold text-white">My Library</h1>
 +     <h1 class="text-2xl font-bold text-white" data-testid="library-heading">My Library</h1>
+```
+
+```diff
+-   <div v-else-if="library.tracks.length === 0" class="card text-center py-12">
++   <div v-else-if="library.tracks.length === 0" class="card text-center py-12" data-testid="empty-state">
 ```
 
 ```diff
@@ -167,7 +275,12 @@ Add a `data-testid` to the heading and track list container:
 +     <button @click="showCreateModal = true" class="btn-primary flex items-center gap-2" data-testid="create-playlist-button">
 ```
 
-Add to create-playlist modal:
+```diff
+-   <div v-else-if="playlists.playlists.length === 0" class="card text-center py-12">
++   <div v-else-if="playlists.playlists.length === 0" class="card text-center py-12" data-testid="empty-state">
+```
+
+Add to create-playlist modal inputs:
 
 ```diff
               <input
@@ -182,8 +295,8 @@ Add to create-playlist modal:
 ```
 
 ```diff
-              <button type="submit" :disabled="isCreating" class="btn-primary">
-+               data-testid="playlist-submit-button"
+-             <button type="submit" :disabled="isCreating" class="btn-primary">
++             <button type="submit" :disabled="isCreating" class="btn-primary" data-testid="playlist-submit-button">
 ```
 
 ### File: `src/NovaTuneClient/apps/admin/src/features/analytics/DashboardPage.vue`
@@ -286,7 +399,7 @@ All three commands must succeed (no tests listed yet is fine).
 
 ---
 
-## Phase 2: Test Host, WebDriver, and Vite Process Fixtures
+## Phase 2: Test Host, WebDriver, and Fixtures
 
 ### File: `src/ui_tests/NovaTuneApp.UiTests/Fixtures/UiTestFixture.cs`
 
@@ -333,7 +446,7 @@ public class UiTestFixture : IAsyncLifetime
 
     public JsonSerializerOptions JsonOptions { get; } = new() { PropertyNameCaseInsensitive = true };
 
-    // Fixed ports for Vite dev servers during tests
+    // Fixed ports for Vite dev servers during tests (offset from dev ports 25173/25174)
     private const int PlayerPort = 26173;
     private const int AdminPort = 26174;
 
@@ -520,12 +633,14 @@ public class UiTestFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Seeds tracks owned by a specific user.
+    /// Seeds tracks owned by a specific user. Uses a single RavenDB session for efficiency.
     /// The userId must match the UserId field (ULID) of the ApplicationUser, NOT the email.
     /// </summary>
     public async Task<List<string>> SeedTracksForUserAsync(string userId, int count)
     {
         var trackIds = new List<string>();
+        using var session = _documentStore.OpenAsyncSession();
+
         for (int i = 0; i < count; i++)
         {
             var trackId = Ulid.NewUlid().ToString();
@@ -547,13 +662,12 @@ public class UiTestFixture : IAsyncLifetime
                 ProcessedAt = now
             };
 
-            using var session = _documentStore.OpenAsyncSession();
             await session.StoreAsync(track);
-            session.Advanced.WaitForIndexesAfterSaveChanges();
-            await session.SaveChangesAsync();
-
             trackIds.Add(trackId);
         }
+
+        session.Advanced.WaitForIndexesAfterSaveChanges();
+        await session.SaveChangesAsync();
         return trackIds;
     }
 
@@ -783,6 +897,136 @@ public static class WaitHelpers
 }
 ```
 
+### File: `src/ui_tests/NovaTuneApp.UiTests/Infrastructure/ScreenshotHelper.cs`
+
+Captures a screenshot on test failure. Call from `DisposeAsync()`.
+
+```csharp
+namespace NovaTuneApp.UiTests.Infrastructure;
+
+public static class ScreenshotHelper
+{
+    private static readonly string ScreenshotDir = Path.Combine(
+        GetRepoRoot(), "src", "ui_tests", "NovaTuneApp.UiTests", "screenshots");
+
+    /// <summary>
+    /// Saves a timestamped screenshot. Safe to call even if the driver is null or disposed.
+    /// </summary>
+    public static void CaptureOnFailure(IWebDriver? driver, string testName)
+    {
+        if (driver is not ITakesScreenshot screenshotDriver)
+            return;
+
+        try
+        {
+            Directory.CreateDirectory(ScreenshotDir);
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+            var fileName = $"{testName}_{timestamp}.png";
+            var filePath = Path.Combine(ScreenshotDir, fileName);
+
+            var screenshot = screenshotDriver.GetScreenshot();
+            screenshot.SaveAsFile(filePath);
+        }
+        catch
+        {
+            // Best effort — don't fail the test teardown
+        }
+    }
+
+    private static string GetRepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "src", "NovaTuneApp", "NovaTuneApp.sln")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        return AppContext.BaseDirectory;
+    }
+}
+```
+
+### File: `src/ui_tests/NovaTuneApp.UiTests/Infrastructure/UiTestBase.cs`
+
+Base class that handles driver lifecycle, login helper, and screenshot-on-failure.
+
+```csharp
+using NovaTuneApp.UiTests.Fixtures;
+
+namespace NovaTuneApp.UiTests.Infrastructure;
+
+/// <summary>
+/// Base class for UI tests. Provides ChromeDriver lifecycle, login helpers,
+/// and automatic screenshot capture on test failure.
+/// </summary>
+public abstract class UiTestBase : IAsyncLifetime
+{
+    protected readonly UiTestFixture Fixture;
+    protected ChromeDriver Driver = null!;
+    private bool _testPassed;
+
+    protected UiTestBase(UiTestFixture fixture)
+    {
+        Fixture = fixture;
+    }
+
+    public virtual async Task InitializeAsync()
+    {
+        await Fixture.ClearDataAsync();
+        Driver = WebDriverFactory.Create();
+        _testPassed = false;
+    }
+
+    public virtual Task DisposeAsync()
+    {
+        if (!_testPassed)
+        {
+            ScreenshotHelper.CaptureOnFailure(Driver, GetType().Name);
+        }
+
+        Driver?.Quit();
+        Driver?.Dispose();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Call at the end of a passing test to suppress failure screenshot.
+    /// </summary>
+    protected void MarkPassed() => _testPassed = true;
+
+    /// <summary>
+    /// Logs in to the player app through the UI.
+    /// Navigates to /auth/login, fills credentials, clicks login, waits for "My Library".
+    /// </summary>
+    protected void PlayerLogin(string email, string password)
+    {
+        WaitHelpers.ResetAndNavigate(Driver, $"{Fixture.PlayerBaseUrl}/auth/login");
+
+        WaitHelpers.WaitForTestId(Driver, "email").SendKeys(email);
+        WaitHelpers.WaitForTestId(Driver, "password").SendKeys(password);
+        WaitHelpers.WaitForTestId(Driver, "login-button").Click();
+
+        WaitHelpers.WaitForText(Driver, "My Library");
+    }
+
+    /// <summary>
+    /// Logs in to the admin app through the UI.
+    /// Navigates to admin /auth/login, fills credentials, clicks login, waits for "Dashboard".
+    /// </summary>
+    protected void AdminLogin(string email, string password)
+    {
+        WaitHelpers.ResetAndNavigate(Driver, $"{Fixture.AdminBaseUrl}auth/login");
+
+        WaitHelpers.WaitForTestId(Driver, "email").SendKeys(email);
+        WaitHelpers.WaitForTestId(Driver, "password").SendKeys(password);
+        WaitHelpers.WaitForTestId(Driver, "login-button").Click();
+
+        WaitHelpers.WaitForText(Driver, "Dashboard");
+    }
+}
+```
+
 ### Acceptance
 
 The project should still build after adding these files:
@@ -804,81 +1048,83 @@ using NovaTuneApp.UiTests.Infrastructure;
 namespace NovaTuneApp.UiTests.Player;
 
 [Trait("Category", "UI")]
+[Trait("App", "Player")]
 [Collection("UI Tests")]
-public class PlayerAuthTests : IAsyncLifetime
+public class PlayerAuthTests(UiTestFixture fixture) : UiTestBase(fixture)
 {
-    private readonly UiTestFixture _fixture;
-    private ChromeDriver _driver = null!;
-
-    public PlayerAuthTests(UiTestFixture fixture)
-    {
-        _fixture = fixture;
-    }
-
-    public async Task InitializeAsync()
-    {
-        await _fixture.ClearDataAsync();
-        _driver = WebDriverFactory.Create();
-    }
-
-    public Task DisposeAsync()
-    {
-        _driver?.Quit();
-        _driver?.Dispose();
-        return Task.CompletedTask;
-    }
-
     [Fact]
     public void Should_redirect_unauthenticated_user_to_login()
     {
         // Act — navigate to the root (requires auth)
-        WaitHelpers.ResetAndNavigate(_driver, _fixture.PlayerBaseUrl);
+        WaitHelpers.ResetAndNavigate(Driver, Fixture.PlayerBaseUrl);
 
         // Assert — should redirect to /auth/login
-        WaitHelpers.WaitForUrlContains(_driver, "/auth/login");
-        var heading = WaitHelpers.WaitForElement(_driver, By.TagName("h2"));
+        WaitHelpers.WaitForUrlContains(Driver, "/auth/login");
+        var heading = WaitHelpers.WaitForElement(Driver, By.TagName("h2"));
         heading.Text.ShouldBe("Sign In");
+        MarkPassed();
     }
 
     [Fact]
     public async Task Should_login_successfully_with_valid_credentials()
     {
         // Arrange
-        var (email, password) = await _fixture.SeedUserAsync();
+        var (email, password) = await Fixture.SeedUserAsync();
 
         // Act — navigate to login page
-        WaitHelpers.ResetAndNavigate(_driver, $"{_fixture.PlayerBaseUrl}/auth/login");
+        WaitHelpers.ResetAndNavigate(Driver, $"{Fixture.PlayerBaseUrl}/auth/login");
 
-        var emailInput = WaitHelpers.WaitForTestId(_driver, "email");
-        var passwordInput = WaitHelpers.WaitForTestId(_driver, "password");
-        var loginButton = WaitHelpers.WaitForTestId(_driver, "login-button");
+        var emailInput = WaitHelpers.WaitForTestId(Driver, "email");
+        var passwordInput = WaitHelpers.WaitForTestId(Driver, "password");
+        var loginButton = WaitHelpers.WaitForTestId(Driver, "login-button");
 
         emailInput.SendKeys(email);
         passwordInput.SendKeys(password);
         loginButton.Click();
 
         // Assert — should redirect to / and show "My Library"
-        WaitHelpers.WaitForUrlContains(_driver, "/");
-        WaitHelpers.WaitForText(_driver, "My Library");
+        WaitHelpers.WaitForUrlContains(Driver, "/");
+        WaitHelpers.WaitForText(Driver, "My Library");
+        MarkPassed();
     }
 
     [Fact]
     public void Should_show_error_on_invalid_login()
     {
         // Act — navigate to login page with bad credentials
-        WaitHelpers.ResetAndNavigate(_driver, $"{_fixture.PlayerBaseUrl}/auth/login");
+        WaitHelpers.ResetAndNavigate(Driver, $"{Fixture.PlayerBaseUrl}/auth/login");
 
-        var emailInput = WaitHelpers.WaitForTestId(_driver, "email");
-        var passwordInput = WaitHelpers.WaitForTestId(_driver, "password");
-        var loginButton = WaitHelpers.WaitForTestId(_driver, "login-button");
+        var emailInput = WaitHelpers.WaitForTestId(Driver, "email");
+        var passwordInput = WaitHelpers.WaitForTestId(Driver, "password");
+        var loginButton = WaitHelpers.WaitForTestId(Driver, "login-button");
 
         emailInput.SendKeys("nonexistent@example.com");
         passwordInput.SendKeys("WrongPassword123!");
         loginButton.Click();
 
-        // Assert — stays on login page, shows error
-        WaitHelpers.WaitForText(_driver, "Login failed");
-        _driver.Url.ShouldContain("/auth/login");
+        // Assert — stays on login page, shows error via data-testid
+        var errorEl = WaitHelpers.WaitForTestId(Driver, "error-message");
+        errorEl.Text.ShouldContain("Login failed");
+        Driver.Url.ShouldContain("/auth/login");
+        MarkPassed();
+    }
+
+    [Fact]
+    public async Task Should_register_and_redirect_to_login_with_success_banner()
+    {
+        // Act — navigate to registration page
+        WaitHelpers.ResetAndNavigate(Driver, $"{Fixture.PlayerBaseUrl}/auth/register");
+
+        WaitHelpers.WaitForTestId(Driver, "displayName").SendKeys("New User");
+        WaitHelpers.WaitForTestId(Driver, "email").SendKeys($"register-{Guid.NewGuid():N}@example.com");
+        WaitHelpers.WaitForTestId(Driver, "password").SendKeys("SecurePassword123!");
+        WaitHelpers.WaitForTestId(Driver, "confirmPassword").SendKeys("SecurePassword123!");
+        WaitHelpers.WaitForTestId(Driver, "register-button").Click();
+
+        // Assert — should redirect to login page (player register redirects to /)
+        // The player RegisterPage.vue calls router.push('/') after successful registration
+        WaitHelpers.WaitForText(Driver, "My Library");
+        MarkPassed();
     }
 }
 ```
@@ -892,57 +1138,42 @@ using NovaTuneApp.UiTests.Infrastructure;
 namespace NovaTuneApp.UiTests.Player;
 
 [Trait("Category", "UI")]
+[Trait("App", "Player")]
 [Collection("UI Tests")]
-public class PlayerLibraryTests : IAsyncLifetime
+public class PlayerLibraryTests(UiTestFixture fixture) : UiTestBase(fixture)
 {
-    private readonly UiTestFixture _fixture;
-    private ChromeDriver _driver = null!;
-
-    public PlayerLibraryTests(UiTestFixture fixture)
+    [Fact]
+    public async Task Should_show_empty_state_for_new_user()
     {
-        _fixture = fixture;
-    }
+        // Arrange — create user with no tracks
+        var (email, password) = await Fixture.SeedUserAsync("library-empty@example.com");
 
-    public async Task InitializeAsync()
-    {
-        await _fixture.ClearDataAsync();
-        _driver = WebDriverFactory.Create();
-    }
+        // Act — log in through the UI
+        PlayerLogin(email, password);
 
-    public Task DisposeAsync()
-    {
-        _driver?.Quit();
-        _driver?.Dispose();
-        return Task.CompletedTask;
+        // Assert — Library page should show empty state
+        WaitHelpers.WaitForTestId(Driver, "library-heading");
+        WaitHelpers.WaitForText(Driver, "No tracks found");
+        MarkPassed();
     }
 
     [Fact]
     public async Task Should_show_seeded_tracks_in_library()
     {
         // Arrange — create user and seed tracks
-        var (email, password) = await _fixture.SeedUserAsync("library-test@example.com");
-        var userId = await _fixture.GetUserIdByEmailAsync("library-test@example.com");
-        await _fixture.SeedTracksForUserAsync(userId, 3);
+        var (email, password) = await Fixture.SeedUserAsync("library-test@example.com");
+        var userId = await Fixture.GetUserIdByEmailAsync("library-test@example.com");
+        await Fixture.SeedTracksForUserAsync(userId, 3);
 
         // Act — log in through the UI
-        LoginViaUi(email, password);
+        PlayerLogin(email, password);
 
         // Assert — Library page should show seeded tracks
-        WaitHelpers.WaitForText(_driver, "My Library");
-        WaitHelpers.WaitForText(_driver, "UI Test Track 1");
-        WaitHelpers.WaitForText(_driver, "UI Test Track 2");
-        WaitHelpers.WaitForText(_driver, "UI Test Track 3");
-    }
-
-    private void LoginViaUi(string email, string password)
-    {
-        WaitHelpers.ResetAndNavigate(_driver, $"{_fixture.PlayerBaseUrl}/auth/login");
-
-        WaitHelpers.WaitForTestId(_driver, "email").SendKeys(email);
-        WaitHelpers.WaitForTestId(_driver, "password").SendKeys(password);
-        WaitHelpers.WaitForTestId(_driver, "login-button").Click();
-
-        WaitHelpers.WaitForText(_driver, "My Library");
+        WaitHelpers.WaitForTestId(Driver, "track-list");
+        WaitHelpers.WaitForText(Driver, "UI Test Track 1");
+        WaitHelpers.WaitForText(Driver, "UI Test Track 2");
+        WaitHelpers.WaitForText(Driver, "UI Test Track 3");
+        MarkPassed();
     }
 }
 ```
@@ -956,80 +1187,52 @@ using NovaTuneApp.UiTests.Infrastructure;
 namespace NovaTuneApp.UiTests.Player;
 
 [Trait("Category", "UI")]
+[Trait("App", "Player")]
 [Collection("UI Tests")]
-public class PlayerPlaylistsTests : IAsyncLifetime
+public class PlayerPlaylistsTests(UiTestFixture fixture) : UiTestBase(fixture)
 {
-    private readonly UiTestFixture _fixture;
-    private ChromeDriver _driver = null!;
-
-    public PlayerPlaylistsTests(UiTestFixture fixture)
-    {
-        _fixture = fixture;
-    }
-
-    public async Task InitializeAsync()
-    {
-        await _fixture.ClearDataAsync();
-        _driver = WebDriverFactory.Create();
-    }
-
-    public Task DisposeAsync()
-    {
-        _driver?.Quit();
-        _driver?.Dispose();
-        return Task.CompletedTask;
-    }
-
     [Fact]
     public async Task Should_show_empty_state_for_new_user()
     {
         // Arrange
-        var (email, password) = await _fixture.SeedUserAsync("playlists-empty@example.com");
+        var (email, password) = await Fixture.SeedUserAsync("playlists-empty@example.com");
 
         // Act — log in and navigate to playlists
-        LoginViaUi(email, password);
-        _driver.Navigate().GoToUrl($"{_fixture.PlayerBaseUrl}/playlists");
+        PlayerLogin(email, password);
+        Driver.Navigate().GoToUrl($"{Fixture.PlayerBaseUrl}/playlists");
 
         // Assert
-        WaitHelpers.WaitForText(_driver, "Playlists");
-        WaitHelpers.WaitForText(_driver, "No playlists yet");
+        WaitHelpers.WaitForTestId(Driver, "playlists-heading");
+        WaitHelpers.WaitForTestId(Driver, "empty-state");
+        WaitHelpers.WaitForText(Driver, "No playlists yet");
+        MarkPassed();
     }
 
     [Fact]
     public async Task Should_create_playlist_and_show_in_list()
     {
         // Arrange
-        var (email, password) = await _fixture.SeedUserAsync("playlists-create@example.com");
+        var (email, password) = await Fixture.SeedUserAsync("playlists-create@example.com");
 
         // Act — log in and navigate to playlists
-        LoginViaUi(email, password);
-        _driver.Navigate().GoToUrl($"{_fixture.PlayerBaseUrl}/playlists");
-        WaitHelpers.WaitForText(_driver, "Playlists");
+        PlayerLogin(email, password);
+        Driver.Navigate().GoToUrl($"{Fixture.PlayerBaseUrl}/playlists");
+        WaitHelpers.WaitForTestId(Driver, "playlists-heading");
 
         // Click "New Playlist"
-        var createButton = WaitHelpers.WaitForTestId(_driver, "create-playlist-button");
+        var createButton = WaitHelpers.WaitForTestId(Driver, "create-playlist-button");
         createButton.Click();
 
         // Fill in the modal
-        var nameInput = WaitHelpers.WaitForTestId(_driver, "playlist-name-input");
+        var nameInput = WaitHelpers.WaitForTestId(Driver, "playlist-name-input");
         nameInput.SendKeys("My First Playlist");
 
-        var submitButton = WaitHelpers.WaitForTestId(_driver, "playlist-submit-button");
+        var submitButton = WaitHelpers.WaitForTestId(Driver, "playlist-submit-button");
         submitButton.Click();
 
         // Assert — playlist should appear in the list
-        WaitHelpers.WaitForText(_driver, "My First Playlist");
-    }
-
-    private void LoginViaUi(string email, string password)
-    {
-        WaitHelpers.ResetAndNavigate(_driver, $"{_fixture.PlayerBaseUrl}/auth/login");
-
-        WaitHelpers.WaitForTestId(_driver, "email").SendKeys(email);
-        WaitHelpers.WaitForTestId(_driver, "password").SendKeys(password);
-        WaitHelpers.WaitForTestId(_driver, "login-button").Click();
-
-        WaitHelpers.WaitForText(_driver, "My Library");
+        WaitHelpers.WaitForText(Driver, "My First Playlist");
+        MarkPassed();
     }
 }
 ```
@@ -1056,76 +1259,79 @@ using NovaTuneApp.UiTests.Infrastructure;
 namespace NovaTuneApp.UiTests.Admin;
 
 [Trait("Category", "UI")]
+[Trait("App", "Admin")]
 [Collection("UI Tests")]
-public class AdminAuthTests : IAsyncLifetime
+public class AdminAuthTests(UiTestFixture fixture) : UiTestBase(fixture)
 {
-    private readonly UiTestFixture _fixture;
-    private ChromeDriver _driver = null!;
-
-    public AdminAuthTests(UiTestFixture fixture)
-    {
-        _fixture = fixture;
-    }
-
-    public async Task InitializeAsync()
-    {
-        await _fixture.ClearDataAsync();
-        _driver = WebDriverFactory.Create();
-    }
-
-    public Task DisposeAsync()
-    {
-        _driver?.Quit();
-        _driver?.Dispose();
-        return Task.CompletedTask;
-    }
-
     [Fact]
     public void Should_redirect_unauthenticated_user_to_admin_login()
     {
         // Act — navigate to admin root (requires auth + admin role)
-        WaitHelpers.ResetAndNavigate(_driver, _fixture.AdminBaseUrl);
+        WaitHelpers.ResetAndNavigate(Driver, Fixture.AdminBaseUrl);
 
-        // Assert — should redirect to /admin/auth/login
-        WaitHelpers.WaitForUrlContains(_driver, "/auth/login");
-        var heading = WaitHelpers.WaitForElement(_driver, By.TagName("h2"));
+        // Assert — should redirect to /auth/login
+        WaitHelpers.WaitForUrlContains(Driver, "/auth/login");
+        var heading = WaitHelpers.WaitForElement(Driver, By.TagName("h2"));
         heading.Text.ShouldBe("Sign In");
+        MarkPassed();
     }
 
     [Fact]
     public async Task Should_login_admin_successfully()
     {
         // Arrange — seed admin user
-        var (email, password) = await _fixture.SeedAdminUserAsync();
+        var (email, password) = await Fixture.SeedAdminUserAsync();
 
         // Act
-        WaitHelpers.ResetAndNavigate(_driver, $"{_fixture.AdminBaseUrl}auth/login");
+        WaitHelpers.ResetAndNavigate(Driver, $"{Fixture.AdminBaseUrl}auth/login");
 
-        WaitHelpers.WaitForTestId(_driver, "email").SendKeys(email);
-        WaitHelpers.WaitForTestId(_driver, "password").SendKeys(password);
-        WaitHelpers.WaitForTestId(_driver, "login-button").Click();
+        WaitHelpers.WaitForTestId(Driver, "email").SendKeys(email);
+        WaitHelpers.WaitForTestId(Driver, "password").SendKeys(password);
+        WaitHelpers.WaitForTestId(Driver, "login-button").Click();
 
         // Assert — should redirect to dashboard
-        WaitHelpers.WaitForText(_driver, "Dashboard");
-        WaitHelpers.WaitForText(_driver, "NovaTune Admin");
+        WaitHelpers.WaitForText(Driver, "Dashboard");
+        WaitHelpers.WaitForText(Driver, "NovaTune Admin");
+        MarkPassed();
     }
 
     [Fact]
     public async Task Should_reject_non_admin_login()
     {
         // Arrange — seed a regular (non-admin) user
-        var (email, password) = await _fixture.SeedUserAsync("nonadmin@example.com");
+        var (email, password) = await Fixture.SeedUserAsync("nonadmin@example.com");
 
         // Act
-        WaitHelpers.ResetAndNavigate(_driver, $"{_fixture.AdminBaseUrl}auth/login");
+        WaitHelpers.ResetAndNavigate(Driver, $"{Fixture.AdminBaseUrl}auth/login");
 
-        WaitHelpers.WaitForTestId(_driver, "email").SendKeys(email);
-        WaitHelpers.WaitForTestId(_driver, "password").SendKeys(password);
-        WaitHelpers.WaitForTestId(_driver, "login-button").Click();
+        WaitHelpers.WaitForTestId(Driver, "email").SendKeys(email);
+        WaitHelpers.WaitForTestId(Driver, "password").SendKeys(password);
+        WaitHelpers.WaitForTestId(Driver, "login-button").Click();
 
-        // Assert — should show "Admin access required" and stay on login
-        WaitHelpers.WaitForText(_driver, "Admin access required");
-        _driver.Url.ShouldContain("/auth/login");
+        // Assert — should show error via data-testid and stay on login
+        var errorEl = WaitHelpers.WaitForTestId(Driver, "error-message");
+        errorEl.Text.ShouldContain("Admin access required");
+        Driver.Url.ShouldContain("/auth/login");
+        MarkPassed();
+    }
+
+    [Fact]
+    public async Task Should_register_admin_and_redirect_to_login()
+    {
+        // Act — navigate to admin registration
+        WaitHelpers.ResetAndNavigate(Driver, $"{Fixture.AdminBaseUrl}auth/register");
+
+        WaitHelpers.WaitForTestId(Driver, "displayName").SendKeys("New Admin");
+        WaitHelpers.WaitForTestId(Driver, "email").SendKeys($"admin-reg-{Guid.NewGuid():N}@example.com");
+        WaitHelpers.WaitForTestId(Driver, "password").SendKeys("SecurePassword123!");
+        WaitHelpers.WaitForTestId(Driver, "confirmPassword").SendKeys("SecurePassword123!");
+        WaitHelpers.WaitForTestId(Driver, "register-button").Click();
+
+        // Assert — admin RegisterPage redirects to login with ?registered=true
+        WaitHelpers.WaitForUrlContains(Driver, "/auth/login");
+        WaitHelpers.WaitForTestId(Driver, "success-message");
+        WaitHelpers.WaitForText(Driver, "Account created successfully");
+        MarkPassed();
     }
 }
 ```
@@ -1139,73 +1345,44 @@ using NovaTuneApp.UiTests.Infrastructure;
 namespace NovaTuneApp.UiTests.Admin;
 
 [Trait("Category", "UI")]
+[Trait("App", "Admin")]
 [Collection("UI Tests")]
-public class AdminDashboardTests : IAsyncLifetime
+public class AdminDashboardTests(UiTestFixture fixture) : UiTestBase(fixture)
 {
-    private readonly UiTestFixture _fixture;
-    private ChromeDriver _driver = null!;
-
-    public AdminDashboardTests(UiTestFixture fixture)
-    {
-        _fixture = fixture;
-    }
-
-    public async Task InitializeAsync()
-    {
-        await _fixture.ClearDataAsync();
-        _driver = WebDriverFactory.Create();
-    }
-
-    public Task DisposeAsync()
-    {
-        _driver?.Quit();
-        _driver?.Dispose();
-        return Task.CompletedTask;
-    }
-
     [Fact]
     public async Task Should_show_dashboard_with_stat_cards()
     {
         // Arrange
-        var (email, password) = await _fixture.SeedAdminUserAsync();
+        var (email, password) = await Fixture.SeedAdminUserAsync();
 
         // Act — log in as admin
-        LoginAsAdmin(email, password);
+        AdminLogin(email, password);
 
         // Assert — dashboard heading and stat card labels should be visible
-        WaitHelpers.WaitForText(_driver, "Dashboard");
-        WaitHelpers.WaitForText(_driver, "Total Users");
-        WaitHelpers.WaitForText(_driver, "Total Tracks");
-        WaitHelpers.WaitForText(_driver, "Total Plays");
-        WaitHelpers.WaitForText(_driver, "Active (24h)");
+        WaitHelpers.WaitForTestId(Driver, "dashboard-heading");
+        WaitHelpers.WaitForText(Driver, "Total Users");
+        WaitHelpers.WaitForText(Driver, "Total Tracks");
+        WaitHelpers.WaitForText(Driver, "Total Plays");
+        WaitHelpers.WaitForText(Driver, "Active (24h)");
+        MarkPassed();
     }
 
     [Fact]
     public async Task Should_show_sidebar_navigation()
     {
         // Arrange
-        var (email, password) = await _fixture.SeedAdminUserAsync("sidebar-test@example.com");
+        var (email, password) = await Fixture.SeedAdminUserAsync("sidebar-test@example.com");
 
         // Act
-        LoginAsAdmin(email, password);
+        AdminLogin(email, password);
 
         // Assert — sidebar nav items should be visible
-        WaitHelpers.WaitForText(_driver, "Dashboard");
-        WaitHelpers.WaitForText(_driver, "Users");
-        WaitHelpers.WaitForText(_driver, "Tracks");
-        WaitHelpers.WaitForText(_driver, "Analytics");
-        WaitHelpers.WaitForText(_driver, "Audit Logs");
-    }
-
-    private void LoginAsAdmin(string email, string password)
-    {
-        WaitHelpers.ResetAndNavigate(_driver, $"{_fixture.AdminBaseUrl}auth/login");
-
-        WaitHelpers.WaitForTestId(_driver, "email").SendKeys(email);
-        WaitHelpers.WaitForTestId(_driver, "password").SendKeys(password);
-        WaitHelpers.WaitForTestId(_driver, "login-button").Click();
-
-        WaitHelpers.WaitForText(_driver, "Dashboard");
+        WaitHelpers.WaitForText(Driver, "Dashboard");
+        WaitHelpers.WaitForText(Driver, "Users");
+        WaitHelpers.WaitForText(Driver, "Tracks");
+        WaitHelpers.WaitForText(Driver, "Analytics");
+        WaitHelpers.WaitForText(Driver, "Audit Logs");
+        MarkPassed();
     }
 }
 ```
@@ -1221,7 +1398,7 @@ All Admin tests pass in headless mode.
 
 ---
 
-## Phase 5: Gitignore and Documentation
+## Phase 5: Gitignore and Cleanup
 
 ### Append to `.gitignore`
 
@@ -1233,21 +1410,34 @@ src/ui_tests/**/logs/
 
 ---
 
+## Phase 6: Verify Full Suite
+
+Run the complete test suite and confirm all tests pass:
+
+```bash
+dotnet test src/ui_tests/NovaTuneApp.UiTests/NovaTuneApp.UiTests.csproj -c Debug
+```
+
+---
+
 ## Test Scenario Summary
 
 | # | Scope | Test | Selectors / Text Used |
 |---|---|---|---|
 | 1 | Player Auth | Redirect unauthenticated to login | URL `/auth/login`, `<h2>Sign In</h2>` |
 | 2 | Player Auth | Login with valid credentials | `data-testid="email"`, `"password"`, `"login-button"`, text "My Library" |
-| 3 | Player Auth | Invalid login shows error | Text "Login failed", URL still `/auth/login` |
-| 4 | Player Library | Shows seeded tracks | Text "My Library", "UI Test Track 1/2/3" |
-| 5 | Player Playlists | Empty state for new user | Text "Playlists", "No playlists yet" |
-| 6 | Player Playlists | Create playlist flow | `data-testid="create-playlist-button"`, `"playlist-name-input"`, `"playlist-submit-button"`, text "My First Playlist" |
-| 7 | Admin Auth | Redirect unauthenticated to login | URL `/auth/login`, `<h2>Sign In</h2>` |
-| 8 | Admin Auth | Admin login succeeds | Text "Dashboard", "NovaTune Admin" |
-| 9 | Admin Auth | Non-admin login rejected | Text "Admin access required", URL `/auth/login` |
-| 10 | Admin Dashboard | Shows stat cards | Text "Dashboard", "Total Users", "Total Tracks", "Total Plays", "Active (24h)" |
-| 11 | Admin Dashboard | Shows sidebar nav | Text "Dashboard", "Users", "Tracks", "Analytics", "Audit Logs" |
+| 3 | Player Auth | Invalid login shows error | `data-testid="error-message"`, text "Login failed" |
+| 4 | Player Auth | Register and auto-login | `data-testid="displayName"`, `"email"`, `"password"`, `"confirmPassword"`, `"register-button"` |
+| 5 | Player Library | Empty state for new user | `data-testid="library-heading"`, text "No tracks found" |
+| 6 | Player Library | Shows seeded tracks | `data-testid="track-list"`, text "UI Test Track 1/2/3" |
+| 7 | Player Playlists | Empty state for new user | `data-testid="playlists-heading"`, `"empty-state"`, text "No playlists yet" |
+| 8 | Player Playlists | Create playlist flow | `data-testid="create-playlist-button"`, `"playlist-name-input"`, `"playlist-submit-button"` |
+| 9 | Admin Auth | Redirect unauthenticated to login | URL `/auth/login`, `<h2>Sign In</h2>` |
+| 10 | Admin Auth | Admin login succeeds | Text "Dashboard", "NovaTune Admin" |
+| 11 | Admin Auth | Non-admin login rejected | `data-testid="error-message"`, text "Admin access required" |
+| 12 | Admin Auth | Register and redirect to login | `data-testid="register-button"`, `"success-message"`, text "Account created" |
+| 13 | Admin Dashboard | Shows stat cards | `data-testid="dashboard-heading"`, text "Total Users/Tracks/Plays", "Active (24h)" |
+| 14 | Admin Dashboard | Shows sidebar nav | Text "Dashboard", "Users", "Tracks", "Analytics", "Audit Logs" |
 
 ---
 
@@ -1255,16 +1445,18 @@ src/ui_tests/**/logs/
 
 ```
 Phase 0 (data-testid attrs)
-    │
-Phase 1 (project bootstrap) ← depends on Phase 0
-    │
-Phase 2 (fixtures + helpers) ← depends on Phase 1
-    │
-    ├── Phase 3 (Player tests) ← depends on Phase 2
-    │
-    └── Phase 4 (Admin tests)  ← depends on Phase 2
-         │
-Phase 5 (gitignore/docs) ← depends on Phase 3 + Phase 4
+    |
+Phase 1 (project bootstrap) <- depends on Phase 0
+    |
+Phase 2 (fixtures + helpers) <- depends on Phase 1
+    |
+    +-- Phase 3 (Player tests) <- depends on Phase 2
+    |
+    +-- Phase 4 (Admin tests)  <- depends on Phase 2
+         |
+Phase 5 (gitignore) <- depends on Phase 3 + Phase 4
+    |
+Phase 6 (full suite verification) <- depends on Phase 5
 ```
 
 ## Execution Order
@@ -1274,6 +1466,7 @@ Phase 5 (gitignore/docs) ← depends on Phase 3 + Phase 4
 3. Phase 2
 4. Phase 3 + Phase 4 (can be written in parallel, must run sequentially due to shared collection fixture)
 5. Phase 5
+6. Phase 6
 
 ## Validation Commands
 
@@ -1283,11 +1476,11 @@ dotnet test src/ui_tests/NovaTuneApp.UiTests/NovaTuneApp.UiTests.csproj -c Debug
 
 # Player tests only
 dotnet test src/ui_tests/NovaTuneApp.UiTests/NovaTuneApp.UiTests.csproj -c Debug \
-  --filter "FullyQualifiedName~Player"
+  --filter "Trait=App&Value=Player"
 
 # Admin tests only
 dotnet test src/ui_tests/NovaTuneApp.UiTests/NovaTuneApp.UiTests.csproj -c Debug \
-  --filter "FullyQualifiedName~Admin"
+  --filter "Trait=App&Value=Admin"
 
 # Headed mode for local debugging
 UI_TESTS_HEADED=1 dotnet test src/ui_tests/NovaTuneApp.UiTests/NovaTuneApp.UiTests.csproj -c Debug
@@ -1299,19 +1492,21 @@ UI_TESTS_HEADED=1 dotnet test src/ui_tests/NovaTuneApp.UiTests/NovaTuneApp.UiTes
 |---|---|
 | Flaky Selenium waits | Centralized `WaitHelpers` with explicit waits, no `Thread.Sleep` |
 | Vite process leaks | `DisposeAsync` kills entire process tree, tracked in a list |
-| Cross-test state leakage | `ClearDataAsync()` in each test class `InitializeAsync`, fresh `ChromeDriver` per class, `localStorage.clear()` before each navigation |
+| Cross-test state leakage | `ClearDataAsync()` in base class `InitializeAsync`, fresh `ChromeDriver` per class, `localStorage.clear()` before each navigation |
 | Chrome/Chromium path differs locally | Selenium Manager auto-resolves chromedriver; headless by default |
 | Slow startup from Aspire + 2 Vite servers | Shared collection fixture starts everything once, all test classes reuse it |
-| Player auth store uses `VITE_API_BASE_URL` directly (not `/api` proxy) | Fixture sets `VITE_API_BASE_URL` env var when starting Vite, pointing to the test API |
-| Admin uses `VITE_API_BASE_URL \|\| '/api'` fallback | Same env var injection handles it; Vite dev server also has proxy configured |
+| Test failure debugging | `ScreenshotHelper` captures PNG on failure, saved to `screenshots/` dir |
+| Player auth store uses `VITE_API_BASE_URL` directly | Fixture sets `VITE_API_BASE_URL` env var when starting Vite, pointing to the test API |
+| Admin uses `VITE_API_BASE_URL || '/api'` fallback | Same env var injection handles it |
 | Port conflicts with real dev servers (25173/25174) | UI tests use offset ports (26173/26174) |
 
 ## Definition of Done
 
-- [ ] All 4 auth pages have `data-testid` attributes on inputs and submit buttons
+- [ ] All 4 auth pages + error divs have `data-testid` attributes
 - [ ] `src/ui_tests/NovaTuneApp.UiTests` is a buildable .NET 9 xUnit project in the solution
 - [ ] `UiTestFixture` starts Aspire backend + both Vite dev servers, provides seeding helpers
-- [ ] 11 test scenarios covering player auth, library, playlists, and admin auth/dashboard
+- [ ] `UiTestBase` provides driver lifecycle, login helpers, and screenshot-on-failure
+- [ ] 14 test scenarios covering player auth, registration, library, playlists, and admin auth/dashboard
 - [ ] `dotnet test src/ui_tests/NovaTuneApp.UiTests/NovaTuneApp.UiTests.csproj` passes in headless mode
 - [ ] No `Thread.Sleep` in test code
 - [ ] Selenium artifacts are gitignored
