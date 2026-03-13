@@ -108,6 +108,8 @@ else
         .WaitFor(database)
         .WithReference(storage.GetEndpoint("api"))
         .WaitFor(storage)
+        .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
+        .WithEnvironment("JWT_SIGNING_KEY", "dev-signing-key-min-32-characters-long-for-testing-only")
         .WithHttpHealthCheck("/health");
 
     // Upload Ingestor Worker - consumes MinIO events and creates Track records

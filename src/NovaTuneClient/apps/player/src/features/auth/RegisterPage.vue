@@ -24,7 +24,7 @@ async function handleSubmit() {
 
   try {
     await auth.register(email.value, password.value, displayName.value);
-    router.push('/');
+    router.push({ name: 'login', query: { registered: 'true' } });
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Registration failed';
   } finally {

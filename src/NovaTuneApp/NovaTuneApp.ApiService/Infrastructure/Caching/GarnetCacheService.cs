@@ -29,7 +29,7 @@ public class GarnetCacheService : ICacheService
         {
             var db = _redis.GetDatabase();
             var value = await db.StringGetAsync(key);
-            return value.HasValue ? JsonSerializer.Deserialize<T>(value!) : default;
+            return value.HasValue ? JsonSerializer.Deserialize<T>(value.ToString()!) : default;
         }, ct);
     }
 
