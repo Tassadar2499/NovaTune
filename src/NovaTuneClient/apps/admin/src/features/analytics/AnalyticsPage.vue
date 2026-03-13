@@ -14,7 +14,7 @@ const timeRanges = [
 <template>
   <div>
     <div class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-bold text-white">Analytics</h1>
+      <h1 class="text-2xl font-bold text-white" data-testid="analytics-heading">Analytics</h1>
       <select v-model="timeRange" class="input w-48">
         <option v-for="range in timeRanges" :key="range.value" :value="range.value">
           {{ range.label }}

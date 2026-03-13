@@ -41,7 +41,7 @@ function playTrack(track: (typeof library.tracks)[0]) {
 <template>
   <div>
     <div class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-bold text-white">My Library</h1>
+      <h1 class="text-2xl font-bold text-white" data-testid="library-heading">My Library</h1>
       <div class="flex items-center gap-4">
         <div class="relative">
           <input
@@ -68,7 +68,7 @@ function playTrack(track: (typeof library.tracks)[0]) {
       </button>
     </div>
 
-    <div v-else-if="library.tracks.length === 0" class="card text-center py-12">
+    <div v-else-if="library.tracks.length === 0" class="card text-center py-12" data-testid="empty-state">
       <svg class="w-16 h-16 text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
       </svg>
@@ -79,7 +79,7 @@ function playTrack(track: (typeof library.tracks)[0]) {
       </RouterLink>
     </div>
 
-    <div v-else class="space-y-2">
+    <div v-else class="space-y-2" data-testid="track-list">
       <div
         v-for="track in library.tracks"
         :key="track.id"

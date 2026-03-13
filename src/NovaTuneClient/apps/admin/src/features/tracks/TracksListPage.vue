@@ -70,7 +70,7 @@ function formatDuration(seconds: number): string {
 <template>
   <div>
     <div class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-bold text-white">Tracks</h1>
+      <h1 class="text-2xl font-bold text-white" data-testid="tracks-heading">Tracks</h1>
     </div>
 
     <div class="card mb-6">

@@ -1,15 +1,21 @@
 <script setup lang="ts">
-import { RouterView, RouterLink } from 'vue-router';
+import { RouterView, RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { usePlayerStore } from '@/stores/player';
 
 const auth = useAuthStore();
 const player = usePlayerStore();
+const router = useRouter();
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+async function handleLogout() {
+  await auth.logout();
+  await router.push('/auth/login');
 }
 </script>
 
@@ -26,6 +32,7 @@ function formatTime(seconds: number): string {
           to="/"
           class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
           active-class="bg-slate-700 text-white"
+          data-testid="nav-library"
         >
           Library
         </RouterLink>
@@ -33,6 +40,7 @@ function formatTime(seconds: number): string {
           to="/playlists"
           class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
           active-class="bg-slate-700 text-white"
+          data-testid="nav-playlists"
         >
           Playlists
         </RouterLink>
@@ -40,6 +48,7 @@ function formatTime(seconds: number): string {
           to="/upload"
           class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
           active-class="bg-slate-700 text-white"
+          data-testid="nav-upload"
         >
           Upload
         </RouterLink>
@@ -54,9 +63,10 @@ function formatTime(seconds: number): string {
             <p class="text-sm text-white truncate">{{ auth.user?.displayName || 'User' }}</p>
           </div>
           <button
-            @click="auth.logout()"
+            @click="handleLogout"
             class="text-slate-400 hover:text-white transition-colors"
             title="Logout"
+            data-testid="logout-button"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

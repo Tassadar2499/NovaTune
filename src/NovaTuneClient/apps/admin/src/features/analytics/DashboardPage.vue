@@ -47,14 +47,19 @@ const colorClasses = {
 
 <template>
   <div>
-    <h1 class="text-2xl font-bold text-white mb-8">Dashboard</h1>
+    <h1 class="text-2xl font-bold text-white mb-8" data-testid="dashboard-heading">Dashboard</h1>
 
     <div v-if="isLoading" class="flex items-center justify-center py-12">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div v-for="card in statCards" :key="card.key" class="card">
+      <div
+        v-for="card in statCards"
+        :key="card.key"
+        class="card"
+        :data-testid="`stat-card-${card.key}`"
+      >
         <div class="flex items-center gap-4">
           <div :class="['w-12 h-12 rounded-lg flex items-center justify-center', colorClasses[card.color as keyof typeof colorClasses]]">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -32,7 +32,11 @@ async function handleSubmit() {
   <form @submit.prevent="handleSubmit" class="space-y-4">
     <h2 class="text-xl font-semibold text-white mb-6">Sign In</h2>
 
-    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
+    <div
+      v-if="error"
+      class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm"
+      data-testid="error-message"
+    >
       {{ error }}
     </div>
 

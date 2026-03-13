@@ -12,14 +12,16 @@
 - The AppHost already orchestrates cache, RavenDB, messaging, storage, workers, and frontend hosting behavior by environment
 - The frontend monorepo already contains concrete player and admin apps with router, layouts, stores, and feature pages
 - Unit and integration test suites exist for backend scenarios; reserved `component_tests` and `functional_tests` folders are still unused
+- A Playwright + TypeScript UI test package now exists under `src/ui_tests/host` and is wired into the frontend workspace scripts
 
 ## What Changed In This Refresh
 - Replaced stale planning-era `.memory-bank` content with repo-backed notes
 - Aligned frontend status with the actual Vue apps that exist under `src/NovaTuneClient/apps/*`
 - Recorded version and topology details from project files instead of carrying earlier assumptions forward
+- Added Playwright UI coverage for player auth/library/playlists and admin auth/navigation flows
 
 ## Immediate Risks / Open Questions
-- Frontend testing remains light or absent despite package scripts advertising it
+- Full UI execution currently depends on a local AppHost/worker restore path that is failing in this environment before the browser can launch
 - Release hosting of the SPAs depends on prebuilt frontend `dist` output being present before `NovaTuneApp.Web` builds
 - Version skew exists across some backend dependencies, especially `RavenDB.Client` and `KafkaFlow`
 - `src/integration_tests/NovaTuneApp.IntegrationTests/TelemetryEndpointTests.cs.bak` is still present and may be leftover noise

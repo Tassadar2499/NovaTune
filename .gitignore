@@ -60,3 +60,16 @@ nunit-*.xml
 
 # Local docker compose overrides
 docker-compose.local.yml
+
+# Playwright UI test artifacts
+src/ui_tests/host/playwright-report/
+src/ui_tests/host/test-results/
+/src/ui_tests/host/node_modules/@playwright/test/
+/src/ui_tests/host/node_modules/@types/node/
+/src/ui_tests/host/node_modules/playwright/
+/src/ui_tests/host/node_modules/playwright-core/
+/src/ui_tests/host/node_modules/@playwright/test/
+/src/ui_tests/host/node_modules/@types/node/
+/src/ui_tests/host/node_modules/playwright/
+/src/ui_tests/host/node_modules/playwright-core/
+/src/ui_tests/host/node_modules/

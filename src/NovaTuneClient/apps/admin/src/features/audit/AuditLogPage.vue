@@ -99,8 +99,13 @@ const actionColors: Record<string, string> = {
 <template>
   <div>
     <div class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-bold text-white">Audit Logs</h1>
-      <button @click="verifyIntegrity" :disabled="isVerifying" class="btn-primary">
+      <h1 class="text-2xl font-bold text-white" data-testid="audit-logs-heading">Audit Logs</h1>
+      <button
+        @click="verifyIntegrity"
+        :disabled="isVerifying"
+        class="btn-primary"
+        data-testid="verify-integrity-button"
+      >
         {{ isVerifying ? 'Verifying...' : 'Verify Integrity' }}
       </button>
     </div>

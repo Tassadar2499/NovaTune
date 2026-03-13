@@ -32,11 +32,19 @@ async function handleSubmit() {
   <form @submit.prevent="handleSubmit" class="space-y-4">
     <h2 class="text-xl font-semibold text-white mb-6">Sign In</h2>
 
-    <div v-if="route.query.registered === 'true'" class="p-3 bg-green-900/50 border border-green-700 rounded-lg text-green-200 text-sm">
+    <div
+      v-if="route.query.registered === 'true'"
+      class="p-3 bg-green-900/50 border border-green-700 rounded-lg text-green-200 text-sm"
+      data-testid="success-message"
+    >
       Account created successfully. Please sign in.
     </div>
 
-    <div v-if="error" class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
+    <div
+      v-if="error"
+      class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm"
+      data-testid="error-message"
+    >
       {{ error }}
     </div>
 
@@ -49,6 +57,7 @@ async function handleSubmit() {
         required
         class="input"
         placeholder="admin@example.com"
+        data-testid="email"
       />
     </div>
 
@@ -61,6 +70,7 @@ async function handleSubmit() {
         required
         class="input"
         placeholder="Enter your password"
+        data-testid="password"
       />
     </div>
 
@@ -68,6 +78,7 @@ async function handleSubmit() {
       type="submit"
       :disabled="isLoading"
       class="w-full btn-primary disabled:opacity-50"
+      data-testid="login-button"
     >
       {{ isLoading ? 'Signing in...' : 'Sign In' }}
     </button>

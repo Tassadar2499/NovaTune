@@ -62,7 +62,7 @@ function formatDate(date: string): string {
 <template>
   <div>
     <div class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-bold text-white">Users</h1>
+      <h1 class="text-2xl font-bold text-white" data-testid="users-heading">Users</h1>
     </div>
 
     <div class="card mb-6">

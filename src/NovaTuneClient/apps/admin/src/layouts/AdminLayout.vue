@@ -34,6 +34,7 @@ const navItems = [
           :to="item.path"
           class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
           active-class="bg-slate-700 text-white"
+          :data-testid="`nav-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
@@ -55,6 +56,7 @@ const navItems = [
             @click="handleLogout"
             class="text-slate-400 hover:text-white transition-colors"
             title="Logout"
+            data-testid="logout-button"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

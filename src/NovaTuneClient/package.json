@@ -7,6 +7,9 @@
     "dev:admin": "pnpm --filter admin dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "test:ui": "pnpm --filter @novatune/ui-tests test",
+    "test:ui:headed": "pnpm --filter @novatune/ui-tests test:headed",
+    "test:ui:install": "pnpm --filter @novatune/ui-tests test:install",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "generate": "pnpm --filter @novatune/api-client generate"

@@ -54,4 +54,4 @@ NovaTuneApp.ApiService
 ## Test Patterns
 - Unit tests use xUnit + Shouldly with fakes for infrastructure-heavy services
 - Integration tests use `Aspire.Hosting.Testing` and cover auth, upload, tracks, playlists, streaming, telemetry, admin, and basic web behavior
-- No dedicated frontend test files were found even though package scripts exist for `vitest` and, in `player`, Playwright
+- Frontend UI coverage now includes Playwright + TypeScript specs under `src/ui_tests/host`, targeting the player and admin SPAs through the Development AppHost stack

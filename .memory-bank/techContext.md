@@ -29,6 +29,7 @@
 - `Axios`: `1.7.x`
 - `Vitest`: `2.x`
 - `Playwright`: `1.45.x` in `apps/player`
+- `Playwright UI tests`: standalone workspace package at `src/ui_tests/host`
 
 ## Commands
 ```bash
@@ -66,6 +67,8 @@ src/NovaTuneClient/
   packages/api-client
   packages/core
   packages/ui
+src/ui_tests/
+  host
 src/unit_tests/
 src/integration_tests/
 doc/
