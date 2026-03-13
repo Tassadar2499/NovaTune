@@ -1,27 +1,36 @@
 # Project Brief: NovaTune
 
 ## Overview
-NovaTune is a production-grade, event-driven audio streaming platform built with .NET 9 Aspire orchestration. It enables users to upload, process, manage, and stream audio tracks with playlist support, telemetry, and admin moderation.
+NovaTune is a self-hosted audio platform built around a .NET 9 backend and a Vue 3 frontend workspace. The repository contains a production-oriented backend for authentication, uploads, track processing, streaming, playlists, telemetry, and admin moderation, plus two SPAs:
+- `player`: listener-facing library, playback, playlists, and upload flows
+- `admin`: moderation, analytics, and audit workflows
 
-## Core Requirements
-- **Audio Upload**: Direct-to-MinIO uploads via presigned URLs with server-side session correlation
-- **Audio Processing**: Automated metadata extraction (ffprobe) and waveform generation (ffmpeg)
-- **Streaming**: Presigned GET URLs with AES-GCM encrypted caching and range request support
-- **Track Management**: CRUD with soft-delete (30-day grace period), cursor pagination, search/filter/sort
-- **Playlists**: CRUD with ordered track entries, position-based reordering, private/public visibility
-- **Telemetry**: Playback event ingestion (start/progress/complete), daily aggregation, analytics
-- **Admin & Moderation**: User management, track moderation, analytics dashboards, tamper-evident audit logs
-- **Authentication**: JWT + refresh token rotation with Argon2id password hashing
+## Repository Scope
+- `src/NovaTuneApp/`: .NET solution and Aspire orchestration
+- `src/NovaTuneClient/`: pnpm monorepo for the Vue apps and shared packages
+- `src/unit_tests/`: xUnit unit tests
+- `src/integration_tests/`: Aspire-backed integration tests
+- `doc/`: requirements, stage plans, frontend planning, and diagrams
 
-## Target Users
-- **Listener**: Upload, manage, and stream audio tracks; create playlists
-- **Admin**: Moderate content, manage users, view analytics, review audit logs
+## Core Product Capabilities
+- JWT auth with refresh token rotation and role separation
+- Direct-to-MinIO upload initiation with correlated upload sessions
+- Event-driven ingestion and background audio processing
+- Track library CRUD with soft delete and lifecycle cleanup
+- Presigned streaming URLs with encrypted cache storage
+- Playlist CRUD with ordered track membership
+- Playback telemetry ingestion and aggregate analytics
+- Admin user management, track moderation, and audit logging
 
-## Technical Constraints
-- .NET 9 with Aspire orchestration
-- RavenDB as sole document database
-- Redpanda (Kafka-compatible) for event-driven messaging
-- MinIO (S3-compatible) for object storage
-- Garnet (Redis-compatible) for distributed caching
-- Vue.js 3 + TypeScript frontend (pnpm monorepo)
-- All IDs use ULID format (26-character string)
+## Major Architectural Decisions
+- RavenDB is the system of record for domain data and aggregates
+- Redpanda/Kafka is used for asynchronous workflows outside Testing
+- MinIO stores audio assets and processing artifacts
+- Garnet/Redis is used for caching, including encrypted stream URL cache entries
+- .NET Aspire composes the local stack and switches behavior by environment
+- Vue apps run under Vite in Development and are copied into `NovaTuneApp.Web/wwwroot` for Release builds
+
+## Working Assumptions
+- The backend is substantially implemented across API + workers
+- The frontend has concrete route/page/store structure, but test coverage and final production hardening are still thinner than the backend
+- `.memory-bank` should track the codebase as it exists, not the earlier planning-only state

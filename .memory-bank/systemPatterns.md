@@ -1,84 +1,57 @@
 # System Patterns
 
-## Architecture Overview
-```
-Vue.js Apps (Player + Admin)
-    |  HTTP/JWT
-    v
-API Service (Minimal APIs)
-    |-> Garnet (Cache)
-    |-> RavenDB (Data)
-    |-> MinIO (S3 Storage)
-    |-> Redpanda (Events)
-         |
-    Workers: UploadIngestor | AudioProcessor | Lifecycle | Telemetry
-```
-
-## Service Registration Pattern
-```csharp
-// Aspire defaults first
-builder.AddServiceDefaults();
-
-// Infrastructure
-builder.AddRedisClient("cache");
-builder.AddRavenDb();
-builder.AddNovaTuneMessaging();
-
-// DI scoping
-Singleton: ICacheService, IStorageService, validators, workers
-Scoped: ITrackManagementService, IPlaylistService, IAuthService, IAdminService
-Transient: handlers, message producers
+## Runtime Topology
+```text
+player SPA (Vite dev or static files)
+admin SPA (Vite dev or static files under /admin)
+                |
+                v
+NovaTuneApp.ApiService
+  |- RavenDB
+  |- Garnet/Redis
+  |- MinIO
+  \- Redpanda/Kafka
+       |- UploadIngestor worker
+       |- AudioProcessor worker
+       |- Lifecycle worker
+       \- Telemetry worker
 ```
 
-## Middleware Pipeline
-```
-CORS -> CorrelationId -> SerilogRequestLogging -> LoginRateLimitMiddleware ->
-RateLimiter -> Authentication -> Authorization
-```
+## Environment-Specific Composition
+- `Testing`: AppHost starts API + cache + RavenDB + MinIO and disables messaging
+- `Development`: AppHost starts API, workers, infrastructure, and Vite dev servers on ports `25173` and `25174`
+- non-Development: AppHost starts `NovaTuneApp.Web`, which serves built frontend assets from `wwwroot` and `wwwroot/admin`
 
-## API Patterns
-- **Minimal APIs** with route groups (not controllers)
-- **RFC 7807 Problem Details** for all error responses
-- **Cursor pagination** with stable ordering for list endpoints
-- **OpenAPI/Scalar** for API documentation
+## Backend Patterns
+- Minimal APIs grouped by domain in `Endpoints/*`
+- Central extension methods for auth, RavenDB, Kafka, rate limiting, and audit wiring
+- Background hosted services for initialization, outbox publishing, cleanup, and admin seeding
+- KafkaFlow handlers per event type in workers and API-side messaging helpers
+- RFC 7807-style problem responses via custom exception/problem-details infrastructure
+- Correlation ID middleware and outbound propagation for tracing consistency
 
-## Messaging Pattern
-- **Topics**: `{env}-audio-events`, `{env}-track-deletions`, `{env}-telemetry`, `{env}-minio-events`, `{env}-dlq`
-- **KafkaFlow** consumers with retry logic (30 attempts, 2s delay for broker connection)
-- **Outbox pattern**: Domain events -> OutboxMessage in same RavenDB transaction -> Background processor publishes to Kafka
+## Domain and Data Patterns
+- RavenDB documents for users, tracks, playlists, upload sessions, refresh tokens, outbox messages, telemetry aggregates, and audit entries
+- Static RavenDB indexes support search, retention, pagination, and admin workflows
+- Track lifecycle is stateful: upload session -> processing -> ready/failed -> soft delete -> physical deletion
+- Outbox pattern is used to bridge RavenDB writes and Kafka publication
 
-## Database Patterns
-- **RavenDB** as sole data store (document database)
-- **15 static indexes** for efficient queries
-- **ULID** identifiers for all entities
-- **Soft delete** with `DeletedAt` timestamp and `DeletionGracePeriod` (30 days)
+## Security and Reliability Patterns
+- JWT bearer auth plus refresh token rotation
+- Argon2 password hashing
+- Role- and policy-based authorization, including admin-only flows
+- Login-specific rate limiting and a broader rate limiter pipeline
+- Encrypted cache wrapper around Redis/Garnet for sensitive streaming data
+- Health checks distinguish required dependencies from optional ones based on feature flags and environment
 
-## Key RavenDB Indexes
-- `Users_ByEmail`, `Users_ForAdminSearch`
-- `Tracks_ByUserForSearch`, `Tracks_ByScheduledDeletion`, `Tracks_ForAdminSearch`
-- `Playlists_ByUserForSearch`, `Playlists_ByTrackReference`
-- `TrackDailyAggregates_ByDateRange`, `TrackDailyAggregates_TopTracks`
-- `AuditLogs_ByFilters`
-- `OutboxMessages_ByStatus`
-- `UploadSessions_ByUserAndStatus`, `UploadSessions_ByStatusAndExpiry`
-- `RefreshTokens_ByUserAndHash`
-- `UserActivityAggregates_ByUser`
+## Frontend Patterns
+- pnpm workspace with `apps/player`, `apps/admin`, and shared `packages/*`
+- Vue Router route guards based on Pinia auth stores
+- `@novatune/api-client` is generated via Orval and wrapped with a custom Axios instance
+- `@novatune/core` centralizes auth storage, HTTP behavior, telemetry helpers, and device utilities
+- `@novatune/ui` exposes basic shared components and toast/composable helpers
 
-## Security Patterns
-- JWT access tokens (15min) + refresh token rotation (1h)
-- Argon2id password hashing (65536 KB memory, 3 iterations, 4 parallelism)
-- AES-GCM encryption for cached presigned URLs
-- Rate limiting on auth endpoints (10 requests/min/IP)
-- Role-based authorization (Listener, Admin)
-
-## Resilience Patterns
-- Polly pipelines: circuit breaker + retry + timeout
-- ResilientTrackManagementService decorator
-- Graceful shutdown: 60s timeout for in-flight messages
-- Feature flags: `Features__MessagingEnabled`, `Features__StorageEnabled`
-
-## Testing Patterns
-- xUnit + Shouldly assertions
-- In-memory fakes for unit test isolation
-- Aspire.Hosting.Testing for integration tests
-- `[Trait("Category", "Aspire")]` for infrastructure-dependent tests
+## Test Patterns
+- Unit tests use xUnit + Shouldly with fakes for infrastructure-heavy services
+- Integration tests use `Aspire.Hosting.Testing` and cover auth, upload, tracks, playlists, streaming, telemetry, admin, and basic web behavior
+- No dedicated frontend test files were found even though package scripts exist for `vitest` and, in `player`, Playwright

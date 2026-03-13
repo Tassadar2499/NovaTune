@@ -15,6 +15,17 @@
   - Reserved folders: `src/component_tests/`, `src/functional_tests/`
 - Docs live in `doc/`.
 
+## Memory Bank
+- Use `.memory-bank/` as the fast project snapshot before making changes or answering repo-level questions.
+- Start with:
+  - `.memory-bank/projectbrief.md`
+  - `.memory-bank/systemPatterns.md`
+  - `.memory-bank/techContext.md`
+  - `.memory-bank/activeContext.md`
+  - `.memory-bank/progress.md`
+- Keep `.memory-bank` aligned with the live codebase; update it when architecture, workflow, or implementation status changes materially.
+- `AGENTS.md` remains the authoritative source for repository-specific working rules; `.memory-bank` is the current codebase context layer.
+
 ## Build, Test, and Development Commands
 - Restore/build .NET:
   - `dotnet restore src/NovaTuneApp/NovaTuneApp.sln`
